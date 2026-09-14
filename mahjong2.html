@@ -1,0 +1,1109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mahjong Hand Analyzer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=Noto+Sans+SC:wght@400;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --felt:#1F4A3E;
+    --felt-dark:#153531;
+    --ivory:#F3ECD9;
+    --ivory-dim:#e8dfc6;
+    --ink:#2A2420;
+    --jade:#3F7A5C;
+    --lacquer:#9A2E22;
+    --gold:#C9A24B;
+    --amber:#B8672E;
+    --stone:#8B8378;
+    --rail:#3a2a1e;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:
+      radial-gradient(ellipse at top, #26584a 0%, var(--felt) 45%, var(--felt-dark) 100%);
+    background-attachment:fixed;
+    color:var(--ink);
+    font-family:'Inter',-apple-system,sans-serif;
+    min-height:100vh;
+    padding:28px 18px 80px;
+  }
+  .cjk{font-family:'Noto Sans SC','Inter',sans-serif;}
+
+  /* ---------- Header ---------- */
+  header{
+    max-width:1180px;
+    margin:0 auto 18px;
+    display:flex;
+    align-items:baseline;
+    gap:18px;
+    flex-wrap:wrap;
+    color:var(--ivory);
+    padding:0 6px;
+  }
+  header .glyph{
+    font-family:'Ma Shan Zheng',cursive;
+    font-size:52px;
+    line-height:1;
+    color:var(--gold);
+    text-shadow:0 2px 0 rgba(0,0,0,.25);
+  }
+  header h1{
+    font-family:'Ma Shan Zheng',cursive;
+    font-weight:400;
+    font-size:34px;
+    margin:0;
+    color:var(--ivory);
+  }
+  header p{
+    margin:2px 0 0;
+    font-size:14.5px;
+    color:#cfe3da;
+    max-width:46ch;
+    line-height:1.5;
+  }
+
+  /* ---------- Tabs ---------- */
+  .view-tabs{
+    max-width:1180px;
+    margin:0 auto 22px;
+    display:flex;
+    gap:24px;
+    padding:0 6px;
+    border-bottom:1px solid rgba(255,255,255,.15);
+  }
+  .view-tab{
+    background:none;
+    border:none;
+    color:#bcd6c9;
+    font-family:inherit;
+    font-size:14px;
+    font-weight:600;
+    padding:0 2px 10px;
+    cursor:pointer;
+    position:relative;
+  }
+  .view-tab.active{color:var(--ivory);}
+  .view-tab.active::after{
+    content:'';
+    position:absolute; left:0; right:0; bottom:-1px;
+    height:2px;
+    background:var(--gold);
+  }
+  .view-tab:focus-visible{outline:2px solid var(--gold); outline-offset:3px;}
+
+  /* ---------- Layout ---------- */
+  .layout{
+    max-width:1180px;
+    margin:0 auto;
+    display:grid;
+    grid-template-columns:1.15fr 1fr;
+    gap:22px;
+    align-items:start;
+  }
+  @media (max-width:920px){
+    .layout{grid-template-columns:1fr;}
+  }
+
+  /* ---------- Wood tray (palette) ---------- */
+  .tray{
+    background:
+      repeating-linear-gradient(100deg, rgba(255,255,255,.035) 0 2px, transparent 2px 7px),
+      linear-gradient(160deg,#6b4a30,#4a3220 60%,#3a2818);
+    border-radius:10px;
+    padding:20px 18px 22px;
+    box-shadow:0 12px 28px rgba(0,0,0,.35), inset 0 0 0 1px rgba(255,255,255,.06);
+  }
+  .tray h2{
+    color:var(--ivory);
+    font-size:13.5px;
+    font-weight:600;
+    letter-spacing:.02em;
+    margin:0 0 12px;
+    display:flex;
+    align-items:center;
+    gap:8px;
+  }
+  .suit-row{margin-bottom:14px;}
+  .suit-row:last-child{margin-bottom:0;}
+  .suit-row .tiles{display:flex; flex-wrap:wrap; gap:6px;}
+  .suit-row .suit-name{
+    color:#e6dcc4;
+    font-size:11.5px;
+    margin-bottom:6px;
+    font-weight:600;
+  }
+
+  /* ==================================================
+     Unified tile component
+     Every tile in the app (palette, hand, decomposition
+     groups, glossary examples) uses this same markup:
+       <button|div class="tile tile--lg|sm suit-m|s|p|honor">
+         <span class="glyph">...</span><span class="cap">...</span>
+       </button|div>
+     ================================================== */
+  .tile{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    border-radius:6px;
+    background:linear-gradient(160deg,var(--ivory) 0%, var(--ivory-dim) 100%);
+    box-shadow:0 3px 0 rgba(0,0,0,.35), inset 0 0 0 1px rgba(0,0,0,.08), inset 0 1px 0 rgba(255,255,255,.6);
+    flex-shrink:0;
+    font-family:inherit;
+  }
+  .tile .glyph{line-height:1;}
+  .tile .cap{font-weight:600; color:#6b6255; margin-top:2px;}
+  .tile.suit-m .glyph{color:#7a1f1f;}
+  .tile.suit-s .glyph{color:#1f5a3a;}
+  .tile.suit-p .glyph{color:#1f3d6b;}
+  .tile.suit-honor .glyph{color:#4a2e1a;}
+
+  .tile--lg{width:46px; height:62px; position:relative;}
+  .tile--lg .glyph{font-size:26px;}
+  .tile--lg .cap{font-size:9px;}
+
+  .tile--sm{width:37px; height:50px; position:relative; box-shadow:0 2px 0 rgba(0,0,0,.3), inset 0 0 0 1px rgba(0,0,0,.08);}
+  .tile--sm .glyph{font-size:20px;}
+  .tile--sm .cap{font-size:8px; margin-top:1px;}
+
+  button.tile{border:none; padding:0; cursor:pointer; transition:transform .08s ease;}
+  button.tile:hover{transform:translateY(-2px);}
+  button.tile:active{transform:translateY(0);}
+  button.tile:focus-visible{outline:3px solid var(--gold); outline-offset:2px;}
+  button.tile:disabled{opacity:.35; cursor:not-allowed;}
+  button.tile:disabled:hover{transform:none;}
+
+  .tile-badge{
+    position:absolute;
+    top:-7px; right:-7px;
+    background:var(--lacquer);
+    color:#fff;
+    font-size:10.5px;
+    font-weight:700;
+    min-width:17px; height:17px;
+    border-radius:9px;
+    display:flex; align-items:center; justify-content:center;
+    padding:0 4px;
+    box-shadow:0 1px 3px rgba(0,0,0,.4);
+  }
+
+  /* ---------- Hand rack ---------- */
+  .rack{
+    margin-top:16px;
+    background:linear-gradient(180deg,var(--rail),#2a1d13);
+    border-radius:8px;
+    padding:14px 14px 12px;
+    box-shadow:inset 0 2px 6px rgba(0,0,0,.5);
+  }
+  .rack-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;}
+  .rack-head h2{color:var(--ivory); font-size:13.5px; font-weight:600; margin:0;}
+  .rack-count{color:#cbb98f; font-size:12.5px; font-variant-numeric:tabular-nums;}
+  .rack .tiles{min-height:64px; display:flex; flex-wrap:wrap; gap:5px; align-items:center;}
+  .rack .empty-msg{color:#a89a80; font-size:13.5px; padding:8px 2px;}
+  .clear-btn{
+    background:transparent; border:1px solid #6b5a44; color:#e6dcc4;
+    font-size:12.5px; font-weight:500; padding:6px 12px; border-radius:6px;
+    cursor:pointer; font-family:inherit;
+  }
+  .clear-btn:hover{background:rgba(255,255,255,.06);}
+  .clear-btn:focus-visible{outline:2px solid var(--gold); outline-offset:2px;}
+
+  /* ---------- Results panel (paper) ---------- */
+  .paper{
+    background:linear-gradient(180deg,#fbf7ec,#f3ecd9);
+    border-radius:10px;
+    padding:22px 22px 26px;
+    box-shadow:0 12px 28px rgba(0,0,0,.3);
+    min-height:200px;
+  }
+  .status-line{
+    display:flex; align-items:center; gap:12px;
+    padding-bottom:16px; margin-bottom:16px;
+    border-bottom:1px solid rgba(0,0,0,.12);
+  }
+  .status-num{font-size:34px; font-weight:700; line-height:1; color:var(--jade); font-variant-numeric:tabular-nums;}
+  .status-num.win{color:var(--lacquer);}
+  .status-text{font-size:14.5px; line-height:1.45; color:#4a4236;}
+  .status-text strong{color:var(--ink);}
+  .empty-state{color:#6b6255; font-size:14.5px; line-height:1.6; padding:10px 2px 4px;}
+
+  section.block{margin-bottom:22px;}
+  section.block:last-child{margin-bottom:0;}
+  section.block h3{font-size:13px; font-weight:600; color:#6b6255; margin:0 0 10px;}
+
+  .ukeire-grid{display:flex; flex-wrap:wrap; gap:8px;}
+  .ukeire-item{display:flex; flex-direction:column; align-items:center; gap:4px;}
+  .ukeire-item .remain{font-size:10.5px; color:#8a8065; font-variant-numeric:tabular-nums;}
+
+  .discard-list{display:flex; flex-direction:column; gap:8px;}
+  .discard-row{display:flex; align-items:center; gap:10px; padding:8px 10px; background:rgba(0,0,0,.035); border-radius:7px;}
+  .discard-row.best{background:rgba(63,122,92,.12); box-shadow:inset 0 0 0 1px rgba(63,122,92,.35);}
+  .discard-row .txt{font-size:13px; color:#4a4236; flex:1;}
+  .discard-row .txt strong{color:var(--ink);}
+
+  /* Named-pattern badges, used in results + decomposition cards */
+  .pattern-badges{display:flex; flex-wrap:wrap; gap:6px; margin-bottom:10px;}
+  .pattern-pill{
+    display:inline-flex; align-items:center; gap:5px;
+    background:rgba(154,46,34,.08);
+    color:var(--lacquer);
+    border:1px solid rgba(154,46,34,.25);
+    border-radius:20px;
+    padding:3px 10px;
+    font-size:12px;
+    font-weight:600;
+    white-space:nowrap;
+  }
+  .pattern-pill .cn{font-weight:400; opacity:.75;}
+
+  .decomp-card{background:rgba(0,0,0,.03); border-radius:8px; padding:12px 12px 14px; margin-bottom:10px;}
+  .decomp-card:last-child{margin-bottom:0;}
+  .group-row{display:flex; flex-wrap:wrap; align-items:flex-start; gap:10px; margin-bottom:8px;}
+  .group-row:last-child{margin-bottom:0;}
+  .group{display:flex; gap:2px; padding:4px; border-radius:7px;}
+  .group.meld{box-shadow:inset 0 0 0 2px var(--jade);}
+  .group.head{box-shadow:inset 0 0 0 2px var(--gold);}
+  .group.taatsu{box-shadow:inset 0 0 0 2px var(--amber); position:relative;}
+  .group.floating{opacity:.55;}
+  .wait-note{font-size:11.5px; color:var(--amber); font-weight:600; align-self:center;}
+
+  .win-banner{
+    background:linear-gradient(135deg,var(--lacquer),#7a2419);
+    color:#fbeecf;
+    border-radius:8px;
+    padding:14px 16px;
+    font-size:14px;
+    font-weight:600;
+    display:flex;
+    align-items:center;
+    gap:10px;
+  }
+  .win-banner .glyph{font-family:'Ma Shan Zheng',cursive; font-size:26px;}
+
+  /* ---------- Glossary view ---------- */
+  .glossary-panel{
+    max-width:1180px;
+    margin:0 auto;
+    background:linear-gradient(180deg,#fbf7ec,#f3ecd9);
+    border-radius:10px;
+    padding:24px 24px 28px;
+    box-shadow:0 12px 28px rgba(0,0,0,.3);
+  }
+  .glossary-intro{font-size:14px; color:#4a4236; max-width:72ch; margin:0 0 22px; line-height:1.6;}
+  .glossary-grid{display:grid; grid-template-columns:repeat(auto-fill, minmax(290px,1fr)); gap:16px;}
+  .glossary-card{background:rgba(0,0,0,.03); border-radius:8px; padding:16px;}
+  .glossary-card h4{margin:0 0 6px; font-size:15px; color:var(--ink); display:flex; gap:8px; align-items:baseline; flex-wrap:wrap;}
+  .glossary-card h4 .cn{font-size:13px; color:#8a8065; font-weight:400;}
+  .glossary-card p{margin:0 0 12px; font-size:12.5px; color:#6b6255; line-height:1.5;}
+
+  footer{max-width:1180px; margin:26px auto 0; color:#a9c4b8; font-size:12px; padding:0 6px; line-height:1.6;}
+
+  @media (prefers-reduced-motion: reduce){
+    button.tile{transition:none;}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="glyph">麻将</div>
+  <div>
+    <h1>Mahjong Hand Analyzer</h1>
+    <p>Build a hand from the rack, and see how close it is to a winning hand — and what that hand would be called.</p>
+  </div>
+</header>
+
+<nav class="view-tabs">
+  <button type="button" class="view-tab active" id="tabBuilder">Build a hand</button>
+  <button type="button" class="view-tab" id="tabGlossary">All hand types</button>
+</nav>
+
+<div id="builderView">
+  <div class="layout">
+
+    <!-- LEFT: palette + hand -->
+    <div>
+      <div class="tray">
+        <h2 class="cjk">选牌 &nbsp;Tile rack</h2>
+        <div id="paletteWraps"></div>
+      </div>
+
+      <div class="rack">
+        <div class="rack-head">
+          <h2 class="cjk">你的手牌 &nbsp;Your hand</h2>
+          <span class="rack-count" id="rackCount">0 / 14</span>
+        </div>
+        <div class="tiles" id="handTiles"></div>
+        <div style="margin-top:10px; display:flex; justify-content:flex-end;">
+          <button class="clear-btn" id="clearBtn">Clear hand</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: results -->
+    <div class="paper" id="resultsPanel"></div>
+
+  </div>
+</div>
+
+<div id="glossaryView" style="display:none;">
+  <div class="glossary-panel">
+    <p class="glossary-intro">Traditional named hands from Chinese mahjong scoring, roughly ordered from simplest to rarest. Exact requirements and point values vary by ruleset — these are the common, widely recognized definitions, each shown with one example hand.</p>
+    <div class="glossary-grid" id="glossaryGrid"></div>
+  </div>
+</div>
+
+<footer>
+  Shanten counts tiles away from a complete hand. Tile counts assume none of your tiles are visible elsewhere, since discards and other hands aren't tracked here. Named-hand predictions for an in-progress hand assume its partial sets complete as shown.
+</footer>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ================= Tile definitions ================= */
+  // Index layout: 0-8 characters(m), 9-17 bamboos(s), 18-26 circles(p),
+  // 27-30 winds (E,S,W,N), 31-33 dragons (Red,Green,White)
+  const SUIT_M=0, SUIT_S=1, SUIT_P=2, HONOR=3;
+
+  function codePointStr(cp){ return String.fromCodePoint(cp); }
+
+  const TILES = [];
+  for(let r=0;r<9;r++){
+    TILES.push({id:r, suitClass:'suit-m', rank:r, glyph:codePointStr(0x1F007+r), cap:(r+1)+'万', label:(r+1)+' Characters'});
+  }
+  for(let r=0;r<9;r++){
+    TILES.push({id:9+r, suitClass:'suit-s', rank:r, glyph:codePointStr(0x1F010+r), cap:(r+1)+'条', label:(r+1)+' Bamboos'});
+  }
+  for(let r=0;r<9;r++){
+    TILES.push({id:18+r, suitClass:'suit-p', rank:r, glyph:codePointStr(0x1F019+r), cap:(r+1)+'筒', label:(r+1)+' Circles'});
+  }
+  const HONOR_META = [
+    {glyph:codePointStr(0x1F000), cap:'东', label:'East Wind'},
+    {glyph:codePointStr(0x1F001), cap:'南', label:'South Wind'},
+    {glyph:codePointStr(0x1F002), cap:'西', label:'West Wind'},
+    {glyph:codePointStr(0x1F003), cap:'北', label:'North Wind'},
+    {glyph:codePointStr(0x1F004), cap:'中', label:'Red Dragon'},
+    {glyph:codePointStr(0x1F005), cap:'发', label:'Green Dragon'},
+    {glyph:codePointStr(0x1F006), cap:'白', label:'White Dragon'},
+  ];
+  HONOR_META.forEach((h,i)=>{
+    TILES.push({id:27+i, suitClass:'suit-honor', rank:i, glyph:h.glyph, cap:h.cap, label:h.label});
+  });
+
+  function suitOf(idx){
+    if(idx<9) return SUIT_M;
+    if(idx<18) return SUIT_S;
+    if(idx<27) return SUIT_P;
+    return HONOR;
+  }
+  function rankOf(idx){ return idx<27 ? idx%9 : idx-27; }
+  function isSuited(idx){ return idx<27; }
+
+  // Small builders used only for hardcoded examples below.
+  function m(n){ return n-1; }
+  function s(n){ return 8+n; }
+  function p(n){ return 17+n; }
+  const EAST=27, SOUTH=28, WEST=29, NORTH=30, RED=31, GREEN=32, WHITE=33;
+
+  /* ================= State ================= */
+  let handCounts = new Array(34).fill(0);
+  function totalTiles(){ return handCounts.reduce((a,b)=>a+b,0); }
+  function countsFromList(list){
+    const c = new Array(34).fill(0);
+    list.forEach(i=>c[i]++);
+    return c;
+  }
+
+  /* ================= Shanten engine ================= */
+
+  function decompose(counts){
+    const c = counts.slice();
+    const results = [];
+    const melds=[], pairs=[], taatsu=[], singles=[];
+
+    function firstNonZero(){
+      for(let i=0;i<34;i++) if(c[i]>0) return i;
+      return -1;
+    }
+
+    function rec(){
+      const i = firstNonZero();
+      if(i===-1){
+        results.push({
+          melds:melds.map(g=>g.slice()),
+          pairs:pairs.map(g=>g.slice()),
+          taatsu:taatsu.map(g=>g.slice()),
+          singles:singles.slice()
+        });
+        return;
+      }
+      const suited = isSuited(i);
+      const rank = rankOf(i);
+
+      if(c[i]>=3){
+        c[i]-=3; melds.push([i,i,i]);
+        rec();
+        melds.pop(); c[i]+=3;
+      }
+      if(suited && rank<=6 && c[i]>=1 && c[i+1]>=1 && c[i+2]>=1){
+        c[i]--; c[i+1]--; c[i+2]--; melds.push([i,i+1,i+2]);
+        rec();
+        melds.pop(); c[i]++; c[i+1]++; c[i+2]++;
+      }
+      if(c[i]>=2){
+        c[i]-=2; pairs.push([i,i]);
+        rec();
+        pairs.pop(); c[i]+=2;
+      }
+      if(suited && rank<=7 && c[i+1]>=1){
+        c[i]--; c[i+1]--; taatsu.push([i,i+1]);
+        rec();
+        taatsu.pop(); c[i]++; c[i+1]++;
+      }
+      if(suited && rank<=6 && c[i+2]>=1){
+        c[i]--; c[i+2]--; taatsu.push([i,i+2]);
+        rec();
+        taatsu.pop(); c[i]++; c[i+2]++;
+      }
+      c[i]--; singles.push(i);
+      rec();
+      singles.pop(); c[i]++;
+    }
+
+    rec();
+    return results;
+  }
+
+  function leafShantenValue(numMelds, numPairs, numTaatsu){
+    const M = Math.min(numMelds,4);
+    const capRoom = Math.max(4-M,0);
+    let best = Infinity, useHead=false, used=0;
+
+    if(numPairs>=1){
+      const u = Math.min(numTaatsu+(numPairs-1), capRoom);
+      const val = (4-M)*2 - u - 1;
+      if(val<best){ best=val; useHead=true; used=u; }
+    }
+    {
+      const u = Math.min(numTaatsu+numPairs, capRoom);
+      const val = (4-M)*2 - u;
+      if(val<best){ best=val; useHead=false; used=u; }
+    }
+    return {value:best, useHead, used};
+  }
+
+  function sevenPairsShanten(counts){
+    let pairCount=0, kinds=0;
+    for(let i=0;i<34;i++){
+      if(counts[i]>0) kinds++;
+      if(counts[i]>=2) pairCount++;
+    }
+    return 6 - pairCount + Math.max(0, 7-kinds);
+  }
+
+  function analyze(counts){
+    const leaves = decompose(counts);
+    let std = Infinity;
+    for(const leaf of leaves){
+      const r = leafShantenValue(leaf.melds.length, leaf.pairs.length, leaf.taatsu.length);
+      if(r.value < std) std = r.value;
+    }
+    const bestLeaves = [];
+    const seen = new Set();
+    for(const leaf of leaves){
+      const r = leafShantenValue(leaf.melds.length, leaf.pairs.length, leaf.taatsu.length);
+      if(r.value===std){
+        const sig = JSON.stringify([leaf.melds,leaf.pairs,leaf.taatsu].map(g=>g.map(x=>x.slice()).sort()));
+        if(!seen.has(sig)){
+          seen.add(sig);
+          bestLeaves.push(Object.assign({}, leaf, {useHead:r.useHead, used:r.used}));
+        }
+      }
+    }
+    const sp = sevenPairsShanten(counts);
+    return { standard:std, standardLeaves:bestLeaves, sevenPairs:sp, overall:Math.min(std,sp) };
+  }
+
+  function cloneAdd(counts, idx, delta){
+    const c = counts.slice();
+    c[idx]+=delta;
+    return c;
+  }
+
+  function usefulTiles(counts){
+    const base = analyze(counts).overall;
+    const out = [];
+    for(let i=0;i<34;i++){
+      if(counts[i]>=4) continue;
+      const next = cloneAdd(counts, i, 1);
+      const res = analyze(next);
+      if(res.overall < base){
+        out.push({idx:i, newShanten:res.overall, remaining: 3-counts[i]});
+      }
+    }
+    return {base, tiles:out};
+  }
+
+  function discardOptions(counts){
+    const rows = [];
+    for(let i=0;i<34;i++){
+      if(counts[i]<=0) continue;
+      const next = cloneAdd(counts, i, -1);
+      const res = analyze(next);
+      rows.push({idx:i, shanten:res.overall});
+    }
+    rows.sort((a,b)=>a.shanten-b.shanten);
+    return rows;
+  }
+
+  /* ================= Decomposition annotation ================= */
+  // Turns a raw leaf (melds/pairs/taatsu/singles + useHead/used from the
+  // shanten formula) into what to actually draw: which pair is the head,
+  // which partial sets are "active" toward the 4-set cap, and what's left
+  // over unused.
+  function annotateLeaf(leaf){
+    const pairsArr = leaf.pairs.slice();
+    const taatsuArr = leaf.taatsu.slice();
+    let head=null, pool=[];
+
+    if(leaf.useHead && pairsArr.length>=1){
+      head = pairsArr[0];
+      pool = pairsArr.slice(1).concat(taatsuArr);
+    } else {
+      pool = pairsArr.concat(taatsuArr);
+    }
+    const active = pool.slice(0, leaf.used);
+    const excess = pool.slice(leaf.used);
+    return { melds: leaf.melds, head, active, excess, singles: leaf.singles };
+  }
+
+  /* ================= Named hand patterns ================= */
+
+  const PATTERN_ORDER = ['sevenPairs','allSequences','allTriplets','halfFlush','fullFlush',
+    'allHonors','bigThreeDragons','littleThreeDragons','bigFourWinds','smallFourWinds',
+    'mixedTerminals','pureTerminals','basicHand'];
+
+  const PATTERN_INFO = {
+    sevenPairs:        {en:'Seven Pairs',            cn:'七对',   desc:'Seven distinct pairs, instead of the usual four sets and a pair.'},
+    allSequences:      {en:'All Sequences',          cn:'平和',   desc:'Four sequences (runs of three) plus a pair — no triplets at all.'},
+    allTriplets:       {en:'All Triplets',           cn:'碰碰和', desc:'Four triplets plus a pair — no sequences at all.'},
+    halfFlush:         {en:'Half Flush',             cn:'混一色', desc:'Every tile comes from one suit, plus any mix of honor tiles.'},
+    fullFlush:         {en:'Full Flush',             cn:'清一色', desc:'Every tile comes from a single suit — no honors, no mixing suits.'},
+    allHonors:         {en:'All Honors',             cn:'字一色', desc:'Every tile is a wind or a dragon — no suited (numbered) tiles at all.'},
+    bigThreeDragons:   {en:'Big Three Dragons',      cn:'大三元', desc:'Triplets of all three dragons — Red, Green, and White.'},
+    littleThreeDragons:{en:'Little Three Dragons',   cn:'小三元', desc:'Triplets of two dragons, with the third dragon held as the pair.'},
+    bigFourWinds:      {en:'Big Four Winds',         cn:'大四喜', desc:'Triplets of all four winds — East, South, West, and North.'},
+    smallFourWinds:    {en:'Small Four Winds',       cn:'小四喜', desc:'Triplets of three winds, with the fourth wind held as the pair.'},
+    mixedTerminals:    {en:'All Terminals and Honors', cn:'混幺九', desc:'Every tile is a 1, a 9, or an honor tile — sequences are impossible.'},
+    pureTerminals:     {en:'Pure Terminals',         cn:'清幺九', desc:'Every tile is exactly a 1 or a 9 — no honors mixed in.'},
+    basicHand:         {en:'Basic Hand',             cn:'',       desc:'A valid, complete hand that doesn\u2019t match any special pattern above.'}
+  };
+
+  function blockKind(group){
+    return group[0]===group[1] ? 'triplet' : 'sequence';
+  }
+
+  // Given an annotated leaf (standard 4-sets-plus-pair shape), work out
+  // which named patterns it matches — or would match, if its active
+  // partial sets complete as expected.
+  function classifyPatterns(ann){
+    const names = [];
+    const setBlocks = ann.melds.concat(ann.active);
+    const head = ann.head;
+
+    if(setBlocks.length===4 && head){
+      const kinds = setBlocks.map(blockKind);
+      if(kinds.every(k=>k==='sequence')) names.push('allSequences');
+      if(kinds.every(k=>k==='triplet')) names.push('allTriplets');
+
+      const honorTripletTiles = setBlocks
+        .filter((g,i)=>kinds[i]==='triplet' && suitOf(g[0])===HONOR)
+        .map(g=>g[0]);
+      const dragonTriplets = honorTripletTiles.filter(t=>t>=31);
+      const windTriplets = honorTripletTiles.filter(t=>t>=27 && t<=30);
+      const headIsDragon = head[0]>=31;
+      const headIsWind = head[0]>=27 && head[0]<=30;
+
+      if(dragonTriplets.length===3) names.push('bigThreeDragons');
+      else if(dragonTriplets.length===2 && headIsDragon) names.push('littleThreeDragons');
+
+      if(windTriplets.length===4) names.push('bigFourWinds');
+      else if(windTriplets.length===3 && headIsWind) names.push('smallFourWinds');
+    }
+
+    const tiles = [];
+    ann.melds.forEach(g=>tiles.push(...g));
+    if(head) tiles.push(...head);
+    ann.active.forEach(g=>tiles.push(...g));
+
+    if(tiles.length){
+      let hasHonor=false;
+      const suits = new Set();
+      tiles.forEach(i=>{
+        if(suitOf(i)===HONOR) hasHonor=true;
+        else suits.add(suitOf(i));
+      });
+      if(suits.size===1 && !hasHonor) names.push('fullFlush');
+      else if(suits.size===1 && hasHonor) names.push('halfFlush');
+      else if(suits.size===0 && hasHonor) names.push('allHonors');
+
+      const allTermHonor = tiles.every(i=>suitOf(i)===HONOR || rankOf(i)===0 || rankOf(i)===8);
+      if(allTermHonor){
+        names.push(hasHonor ? 'mixedTerminals' : 'pureTerminals');
+      }
+    }
+
+    if(names.length===0 && setBlocks.length===4 && head){
+      names.push('basicHand');
+    }
+    return names;
+  }
+
+  // Fixed illustrative 14-tile hands for the glossary page. Each is run
+  // through the real decompose()/classifyPatterns() pipeline so the
+  // example is guaranteed to actually match the pattern it's filed under.
+  const PATTERN_EXAMPLES = {
+    allSequences: [m(1),m(2),m(3), m(4),m(5),m(6), m(7),m(8),m(9), s(2),s(3),s(4), p(5),p(5)],
+    allTriplets: [m(1),m(1),m(1), s(5),s(5),s(5), p(9),p(9),p(9), EAST,EAST,EAST, m(7),m(7)],
+    halfFlush: [m(1),m(2),m(3), m(4),m(5),m(6), m(7),m(8),m(9), EAST,EAST,EAST, m(2),m(2)],
+    fullFlush: [p(1),p(2),p(3), p(4),p(5),p(6), p(9),p(9),p(9), p(2),p(3),p(4), p(7),p(7)],
+    allHonors: [EAST,EAST,EAST, SOUTH,SOUTH,SOUTH, RED,RED,RED, GREEN,GREEN,GREEN, WEST,WEST],
+    bigThreeDragons: [RED,RED,RED, GREEN,GREEN,GREEN, WHITE,WHITE,WHITE, m(1),m(2),m(3), s(5),s(5)],
+    littleThreeDragons: [RED,RED,RED, GREEN,GREEN,GREEN, WHITE,WHITE, m(1),m(2),m(3), s(4),s(5),s(6)],
+    bigFourWinds: [EAST,EAST,EAST, SOUTH,SOUTH,SOUTH, WEST,WEST,WEST, NORTH,NORTH,NORTH, m(5),m(5)],
+    smallFourWinds: [EAST,EAST,EAST, SOUTH,SOUTH,SOUTH, WEST,WEST,WEST, NORTH,NORTH, m(3),m(4),m(5)],
+    mixedTerminals: [m(1),m(1),m(1), m(9),m(9),m(9), s(1),s(1),s(1), EAST,EAST,EAST, p(9),p(9)],
+    pureTerminals: [m(1),m(1),m(1), m(9),m(9),m(9), s(1),s(1),s(1), p(9),p(9),p(9), s(9),s(9)],
+    basicHand: [m(1),m(2),m(3), s(4),s(5),s(6), p(9),p(9),p(9), EAST,EAST,EAST, m(7),m(7)]
+  };
+  const SEVEN_PAIRS_EXAMPLE = [m(1),m(1), m(5),m(5), s(2),s(2), s(8),s(8), p(3),p(3), p(9),p(9), RED,RED];
+
+  function findExampleLeaf(key){
+    const counts = countsFromList(PATTERN_EXAMPLES[key]);
+    const leaves = analyze(counts).standardLeaves;
+    for(const leaf of leaves){
+      const ann = annotateLeaf(leaf);
+      if(classifyPatterns(ann).includes(key)) return ann;
+    }
+    return annotateLeaf(leaves[0]);
+  }
+
+  /* ================= Rendering: shared tile component ================= */
+
+  function makeTile(idx, opts){
+    opts = opts || {};
+    const size = opts.size || 'lg';
+    const t = TILES[idx];
+    const el = document.createElement(opts.interactive ? 'button' : 'div');
+    if(opts.interactive) el.type = 'button';
+    el.className = 'tile tile--'+size+' '+t.suitClass;
+    el.title = t.label;
+    if(opts.ariaLabel) el.setAttribute('aria-label', opts.ariaLabel);
+    el.innerHTML = '<span class="glyph">'+t.glyph+'</span><span class="cap cjk">'+t.cap+'</span>';
+    if(opts.badge!=null){
+      const b = document.createElement('span');
+      b.className = 'tile-badge';
+      b.textContent = 'x'+opts.badge;
+      el.appendChild(b);
+    }
+    if(opts.interactive){
+      if(opts.disabled) el.disabled = true;
+      if(opts.onClick) el.addEventListener('click', opts.onClick);
+    }
+    return el;
+  }
+
+  /* ================= Palette ================= */
+
+  const SUIT_SECTIONS = [
+    {title:'万 Characters', range:[0,9]},
+    {title:'条 Bamboos', range:[9,18]},
+    {title:'筒 Circles', range:[18,27]},
+    {title:'风 & 箭 Winds & Dragons', range:[27,34]},
+  ];
+
+  function renderPalette(){
+    const wrap = document.getElementById('paletteWraps');
+    wrap.innerHTML='';
+    SUIT_SECTIONS.forEach(sec=>{
+      const row = document.createElement('div');
+      row.className='suit-row';
+      const h = document.createElement('div');
+      h.className='suit-name cjk';
+      h.textContent = sec.title;
+      row.appendChild(h);
+      const tilesDiv = document.createElement('div');
+      tilesDiv.className='tiles';
+      for(let i=sec.range[0]; i<sec.range[1]; i++){
+        const count = handCounts[i];
+        const total = totalTiles();
+        const t = TILES[i];
+        const btn = makeTile(i, {
+          size:'lg',
+          interactive:true,
+          ariaLabel:'Add '+t.label,
+          badge: count>0 ? count : null,
+          disabled: count>=4 || total>=14,
+          onClick: ()=>{
+            if(handCounts[i]<4 && totalTiles()<14){
+              handCounts[i]++;
+              renderAll();
+            }
+          }
+        });
+        tilesDiv.appendChild(btn);
+      }
+      row.appendChild(tilesDiv);
+      wrap.appendChild(row);
+    });
+  }
+
+  /* ================= Hand rack ================= */
+
+  function renderHand(){
+    const wrap = document.getElementById('handTiles');
+    wrap.innerHTML='';
+    const total = totalTiles();
+    document.getElementById('rackCount').textContent = total+' / 14';
+
+    if(total===0){
+      const p = document.createElement('div');
+      p.className='empty-msg';
+      p.textContent = 'Tap tiles above to start building your hand.';
+      wrap.appendChild(p);
+      return;
+    }
+
+    for(let i=0;i<34;i++){
+      for(let n=0;n<handCounts[i];n++){
+        const t = TILES[i];
+        const btn = makeTile(i, {
+          size:'sm',
+          interactive:true,
+          ariaLabel:'Remove one '+t.label,
+          onClick: ()=>{ handCounts[i]--; renderAll(); }
+        });
+        wrap.appendChild(btn);
+      }
+    }
+  }
+
+  /* ================= Results ================= */
+
+  function renderPatternBadges(container, keys){
+    if(!keys || !keys.length) return;
+    const row = document.createElement('div');
+    row.className='pattern-badges';
+    keys.forEach(k=>{
+      const info = PATTERN_INFO[k];
+      const pill = document.createElement('span');
+      pill.className='pattern-pill';
+      pill.innerHTML = info.en + (info.cn ? ' <span class="cn cjk">'+info.cn+'</span>' : '');
+      row.appendChild(pill);
+    });
+    container.appendChild(row);
+  }
+
+  function patternNamesText(keys){
+    return keys.map(k=>PATTERN_INFO[k].en).join(', ');
+  }
+
+  function renderGroup(tiles, kind, waitNote){
+    const g = document.createElement('div');
+    g.className = 'group '+kind;
+    tiles.forEach(idx=>{ g.appendChild(makeTile(idx, {size:'sm'})); });
+    const row = document.createElement('div');
+    row.className='group-row';
+    row.appendChild(g);
+    if(waitNote){
+      const note = document.createElement('span');
+      note.className='wait-note';
+      note.textContent = waitNote;
+      row.appendChild(note);
+    }
+    return row;
+  }
+
+  function waitDescription(pair){
+    const [a,b] = pair;
+    if(a===b){
+      return 'needs '+TILES[a].cap+' (pair \u2192 set)';
+    }
+    if(b===a+1){
+      const wants = [];
+      const rank = rankOf(a);
+      if(rank>=1) wants.push(a-1);
+      if(rankOf(b)<=7) wants.push(b+1);
+      return 'needs '+wants.map(w=>TILES[w].cap).join(' or ');
+    }
+    if(b===a+2){
+      return 'needs '+TILES[a+1].cap;
+    }
+    return '';
+  }
+
+  function renderGroupsBlock(ann){
+    const wrap = document.createElement('div');
+    ann.melds.forEach(mg=>wrap.appendChild(renderGroup(mg,'meld')));
+    if(ann.head) wrap.appendChild(renderGroup(ann.head,'head'));
+    ann.active.forEach(t=>wrap.appendChild(renderGroup(t,'taatsu', waitDescription(t))));
+    const floatTiles = ann.excess.reduce((acc,g)=>acc.concat(g),[]).concat(ann.singles);
+    if(floatTiles.length) wrap.appendChild(renderGroup(floatTiles,'floating'));
+    return wrap;
+  }
+
+  function renderDecompCard(leaf){
+    const card = document.createElement('div');
+    card.className='decomp-card';
+    const ann = annotateLeaf(leaf);
+    renderPatternBadges(card, classifyPatterns(ann));
+    card.appendChild(renderGroupsBlock(ann));
+    return card;
+  }
+
+  function renderSevenPairsCard(counts){
+    const card = document.createElement('div');
+    card.className='decomp-card';
+    renderPatternBadges(card, ['sevenPairs']);
+    const pairs=[], singles=[];
+    for(let i=0;i<34;i++){
+      if(counts[i]>=2) pairs.push(i);
+      else if(counts[i]===1) singles.push(i);
+    }
+    pairs.forEach(i=>card.appendChild(renderGroup([i,i],'head')));
+    if(singles.length){
+      const row = document.createElement('div');
+      row.className='group-row';
+      const g = document.createElement('div');
+      g.className='group taatsu';
+      singles.forEach(i=>g.appendChild(makeTile(i,{size:'sm'})));
+      row.appendChild(g);
+      const note = document.createElement('span');
+      note.className='wait-note';
+      note.textContent = 'each needs a matching tile to pair up';
+      row.appendChild(note);
+      card.appendChild(row);
+    }
+    return card;
+  }
+
+  function shantenLabel(v){
+    if(v<=-1) return 'Complete hand';
+    if(v===0) return 'Waiting (tenpai)';
+    return v+' tile'+(v===1?'':'s')+' away';
+  }
+
+  function renderResults(){
+    const panel = document.getElementById('resultsPanel');
+    panel.innerHTML='';
+    const total = totalTiles();
+
+    if(total===0){
+      const div = document.createElement('div');
+      div.className='empty-state';
+      div.innerHTML = 'Your analysis will appear here.<br><br>Build a hand of up to 14 tiles from the rack on the left \u2014 the closest winning shapes, their names, and the tiles that help most will show up here as you go.';
+      panel.appendChild(div);
+      return;
+    }
+
+    const res = analyze(handCounts);
+    const type = res.standard<=res.sevenPairs ? 'standard' : 'sevenPairs';
+    const overall = res.overall;
+
+    const primaryNames = type==='standard' && res.standardLeaves.length
+      ? classifyPatterns(annotateLeaf(res.standardLeaves[0]))
+      : ['sevenPairs'];
+
+    // Status line
+    const status = document.createElement('div');
+    status.className='status-line';
+    const num = document.createElement('div');
+    num.className='status-num'+(overall<=-1?' win':'');
+    num.textContent = overall<=-1 ? '\u2713' : overall;
+    const text = document.createElement('div');
+    text.className='status-text';
+    const namesText = primaryNames.length ? patternNamesText(primaryNames) : (type==='standard' ? '4 sets + a pair' : 'seven pairs');
+    if(overall<=-1){
+      text.innerHTML = '<strong>This hand is complete</strong> \u2014 '+namesText+'.';
+    } else if(overall===0){
+      text.innerHTML = '<strong>Tenpai</strong> \u2014 one tile away from winning, closest as '+namesText+'.';
+    } else {
+      text.innerHTML = '<strong>'+shantenLabel(overall)+'</strong> from a winning hand, closest as '+namesText+'.';
+    }
+    status.appendChild(num);
+    status.appendChild(text);
+    panel.appendChild(status);
+
+    if(overall<=-1){
+      const banner = document.createElement('div');
+      banner.className='win-banner';
+      banner.innerHTML = '<span class="glyph">和</span><span>Hand complete \u2014 '+namesText+'.</span>';
+      panel.appendChild(banner);
+    }
+
+    if(total===14){
+      const sec = document.createElement('section');
+      sec.className='block';
+      const h3 = document.createElement('h3');
+      h3.textContent = 'Best tiles to discard';
+      sec.appendChild(h3);
+      const rows = discardOptions(handCounts);
+      const bestVal = rows.length ? rows[0].shanten : null;
+      const list = document.createElement('div');
+      list.className='discard-list';
+      rows.slice(0,6).forEach(r=>{
+        const row = document.createElement('div');
+        row.className='discard-row'+(r.shanten===bestVal?' best':'');
+        row.appendChild(makeTile(r.idx,{size:'sm'}));
+        const txt = document.createElement('div');
+        txt.className='txt';
+        txt.innerHTML = 'Discard <strong>'+TILES[r.idx].label+'</strong> \u2192 '+shantenLabel(r.shanten).toLowerCase();
+        row.appendChild(txt);
+        list.appendChild(row);
+      });
+      sec.appendChild(list);
+      panel.appendChild(sec);
+    } else if(overall>-1) {
+      const sec = document.createElement('section');
+      sec.className='block';
+      const h3 = document.createElement('h3');
+      h3.textContent = overall===0 ? 'Tiles that complete the hand' : 'Tiles that bring you closer';
+      sec.appendChild(h3);
+      const uk = usefulTiles(handCounts);
+      if(uk.tiles.length===0){
+        const p = document.createElement('div');
+        p.style.cssText='font-size:13px;color:#6b6255;';
+        p.textContent = 'No single tile improves this hand further \u2014 try reshaping it.';
+        sec.appendChild(p);
+      } else {
+        const grid = document.createElement('div');
+        grid.className='ukeire-grid';
+        uk.tiles.sort((a,b)=>a.idx-b.idx).forEach(u=>{
+          const item = document.createElement('div');
+          item.className='ukeire-item';
+          item.appendChild(makeTile(u.idx,{size:'sm'}));
+          const remain = document.createElement('div');
+          remain.className='remain';
+          remain.textContent = u.remaining+' left';
+          item.appendChild(remain);
+          grid.appendChild(item);
+        });
+        sec.appendChild(grid);
+      }
+      panel.appendChild(sec);
+    }
+
+    if(overall>-1){
+      const sec = document.createElement('section');
+      sec.className='block';
+      const h3 = document.createElement('h3');
+      h3.textContent = 'Closest hand shapes';
+      sec.appendChild(h3);
+
+      if(res.standard<=res.sevenPairs+1){
+        res.standardLeaves.slice(0,3).forEach(leaf=>{
+          sec.appendChild(renderDecompCard(leaf));
+        });
+      }
+      if(res.sevenPairs<=res.standard){
+        sec.appendChild(renderSevenPairsCard(handCounts));
+      }
+      panel.appendChild(sec);
+    } else {
+      const sec = document.createElement('section');
+      sec.className='block';
+      const h3 = document.createElement('h3');
+      h3.textContent = 'Hand breakdown';
+      sec.appendChild(h3);
+      if(type==='standard' && res.standardLeaves.length){
+        sec.appendChild(renderDecompCard(res.standardLeaves[0]));
+      } else {
+        sec.appendChild(renderSevenPairsCard(handCounts));
+      }
+      panel.appendChild(sec);
+    }
+  }
+
+  /* ================= Glossary view ================= */
+
+  function renderPatternCard(key){
+    const info = PATTERN_INFO[key];
+    const card = document.createElement('div');
+    card.className='glossary-card';
+    const h = document.createElement('h4');
+    h.innerHTML = info.en + (info.cn ? ' <span class="cn cjk">'+info.cn+'</span>' : '');
+    card.appendChild(h);
+    const p = document.createElement('p');
+    p.textContent = info.desc;
+    card.appendChild(p);
+
+    if(key==='sevenPairs'){
+      card.appendChild(renderSevenPairsExampleBlock());
+    } else {
+      const ann = findExampleLeaf(key);
+      card.appendChild(renderGroupsBlock(ann));
+    }
+    return card;
+  }
+
+  function renderSevenPairsExampleBlock(){
+    const wrap = document.createElement('div');
+    const counts = countsFromList(SEVEN_PAIRS_EXAMPLE);
+    for(let i=0;i<34;i++){
+      if(counts[i]>=2) wrap.appendChild(renderGroup([i,i],'head'));
+    }
+    return wrap;
+  }
+
+  function renderGlossary(){
+    const grid = document.getElementById('glossaryGrid');
+    grid.innerHTML='';
+    PATTERN_ORDER.forEach(key=>{
+      grid.appendChild(renderPatternCard(key));
+    });
+  }
+
+  /* ================= Wiring ================= */
+
+  function renderAll(){
+    renderPalette();
+    renderHand();
+    renderResults();
+  }
+
+  document.getElementById('clearBtn').addEventListener('click', ()=>{
+    handCounts = new Array(34).fill(0);
+    renderAll();
+  });
+
+  const builderView = document.getElementById('builderView');
+  const glossaryView = document.getElementById('glossaryView');
+  const tabBuilder = document.getElementById('tabBuilder');
+  const tabGlossary = document.getElementById('tabGlossary');
+  let glossaryRendered = false;
+
+  function showView(name){
+    const isBuilder = name==='builder';
+    builderView.style.display = isBuilder ? '' : 'none';
+    glossaryView.style.display = isBuilder ? 'none' : '';
+    tabBuilder.classList.toggle('active', isBuilder);
+    tabGlossary.classList.toggle('active', !isBuilder);
+    if(!isBuilder && !glossaryRendered){
+      renderGlossary();
+      glossaryRendered = true;
+    }
+  }
+  tabBuilder.addEventListener('click', ()=>showView('builder'));
+  tabGlossary.addEventListener('click', ()=>showView('glossary'));
+
+  renderAll();
+})();
+</script>
+</body>
+</html>
