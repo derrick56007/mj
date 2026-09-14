@@ -213,6 +213,55 @@
   .clear-btn:hover{background:rgba(255,255,255,.06);}
   .clear-btn:focus-visible{outline:2px solid var(--gold); outline-offset:2px;}
 
+  /* ---------- Round / seat wind selectors ---------- */
+  .wind-settings{
+    margin-top:14px;
+    background:linear-gradient(180deg,var(--rail),#2a1d13);
+    border-radius:8px;
+    padding:12px 14px;
+    display:flex;
+    flex-wrap:wrap;
+    gap:16px;
+    box-shadow:inset 0 2px 6px rgba(0,0,0,.5);
+  }
+  .wind-settings label{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    color:#e6dcc4;
+    font-size:12.5px;
+    font-weight:600;
+  }
+  .wind-settings select{
+    background:var(--ivory);
+    color:var(--ink);
+    border:none;
+    border-radius:5px;
+    padding:5px 8px;
+    font-family:inherit;
+    font-size:12.5px;
+    font-weight:600;
+    cursor:pointer;
+  }
+  .wind-settings select:focus-visible{outline:2px solid var(--gold); outline-offset:2px;}
+
+  /* ---------- Scoring section ---------- */
+  .fan-total{
+    margin-top:12px;
+    font-size:15px;
+    font-weight:700;
+    color:var(--ink);
+    padding-top:10px;
+    border-top:1px solid rgba(0,0,0,.12);
+  }
+  .fan-total .num{color:var(--lacquer); font-variant-numeric:tabular-nums;}
+  .discard-row .fan-pts{
+    font-size:12px;
+    font-weight:700;
+    color:var(--lacquer);
+    white-space:nowrap;
+  }
+
   /* ---------- Results panel (paper) ---------- */
   .paper{
     background:linear-gradient(180deg,#fbf7ec,#f3ecd9);
@@ -265,7 +314,7 @@
   .decomp-card:last-child{margin-bottom:0;}
   .group-row{display:flex; flex-wrap:wrap; align-items:flex-start; gap:10px; margin-bottom:8px;}
   .group-row:last-child{margin-bottom:0;}
-  .group{display:flex; gap:2px; padding:4px; border-radius:7px;}
+  .group{display:flex; flex-wrap:wrap; gap:2px; padding:4px; border-radius:7px; max-width:100%;}
   .group.meld{box-shadow:inset 0 0 0 2px var(--jade);}
   .group.head{box-shadow:inset 0 0 0 2px var(--gold);}
   .group.taatsu{box-shadow:inset 0 0 0 2px var(--amber); position:relative;}
@@ -333,6 +382,25 @@
         <div id="paletteWraps"></div>
       </div>
 
+      <div class="wind-settings">
+        <label>Round wind (table)
+          <select id="prevalentWindSelect">
+            <option value="E">East</option>
+            <option value="S">South</option>
+            <option value="W">West</option>
+            <option value="N">North</option>
+          </select>
+        </label>
+        <label>Your seat wind
+          <select id="seatWindSelect">
+            <option value="E">East</option>
+            <option value="S">South</option>
+            <option value="W">West</option>
+            <option value="N">North</option>
+          </select>
+        </label>
+      </div>
+
       <div class="rack">
         <div class="rack-head">
           <h2 class="cjk">你的手牌 &nbsp;Your hand</h2>
@@ -353,7 +421,7 @@
 
 <div id="glossaryView" style="display:none;">
   <div class="glossary-panel">
-    <p class="glossary-intro">Traditional named hands from Chinese mahjong scoring, roughly ordered from simplest to rarest. Exact requirements and point values vary by ruleset — these are the common, widely recognized definitions, each shown with one example hand.</p>
+    <p class="glossary-intro">All 81 scoring patterns ("fan") from the 1998 Chinese Official Mahjong Scoring Rules, ordered from highest-scoring to lowest-scoring. A few of the rarest patterns are illustrated with an example hand; the rest are described in text. Patterns that depend on how a hand was won (self-drawn, last tile, replacement tile, kong calls, flowers, etc.) aren't detected by the hand builder's scoring tool, since it doesn't track that information.</p>
     <div class="glossary-grid" id="glossaryGrid"></div>
   </div>
 </div>
@@ -413,6 +481,9 @@
 
   /* ================= State ================= */
   let handCounts = new Array(34).fill(0);
+  let prevalentWind = EAST;
+  let seatWind = EAST;
+  const WIND_TILE_BY_LETTER = {E:EAST, S:SOUTH, W:WEST, N:NORTH};
   function totalTiles(){ return handCounts.reduce((a,b)=>a+b,0); }
   function countsFromList(list){
     const c = new Array(34).fill(0);
@@ -583,27 +654,107 @@
     return { melds: leaf.melds, head, active, excess, singles: leaf.singles };
   }
 
+  /* ================= 1998 Chinese Official fan table ================= */
+  // Verbatim data (name | description | combination notes | points) for all
+  // 81 scoring patterns, embedded so the glossary and scoring engine share
+  // a single source of truth.
+  const FAN_TABLE_RAW = `Fan | Description | Notes | Points
+Big Four Winds | Four pungs of winds. | Does not combine with Big Three Winds, All Pungs, Prevalent Wind, Seat Wind or Pung of Terminals or Honors. | 88
+Big Three Dragons | Three pungs of dragons. | Does not combine with other dragon-based fan. | 88
+All Green | A hand, of which all sets and the pair have only tiles painted in green. | Does not combine with Seven Pairs, Half Flush, One Voided Suit. | 88
+Nine Gates | 1112345678999 in one suit concealed, waiting on any tile of the same suit. | Does not combine with Full Flush, Half Flush, Concealed Hand, One Voided Suit or No Honors. | 88
+Four Kongs |  | Does not combine with concealed pung-, kong- or melded kong-based fan, All Pungs or Single Wait. | 88
+Seven Shifted Pairs | An irregular hand with seven pairs in one suit, of which the numbers are off by one. | Does not combine with Seven Pairs, Full Flush, Half Flush, Concealed Hand, One Voided Suit or No Honors. | 88
+Thirteen Orphans | Three sets 1s and 9s in three suit and one of each winds or dragon, one of any paired. | Does not combine with All Terminals and Honors, Outside Hand, Concealed Hand or Single Wait. | 88
+All Terminals | Four pungs or kongs and one pair of 1s and 9s. | Does not combine with All Terminals and Honors, Seven Pairs, Triple Pung, All Pungs, Outside Hand, Double Pung, Pung of Terminals or Honors, or No Honors. | 64
+Little Four Winds | Three pungs or kongs and one pair of winds. | Does not combine with Big Three Winds. | 64
+Little Three Dragons | Two pungs or kongs and one pair of dragons. | Does not combine with other dragon-based fan. | 64
+All Honors | Four pungs or kongs and one pair of winds and dragons. | Does not combine with All Terminals and Honors, Seven Pairs, All Pungs, Half Flush, Outside Hand or One Voided Suit. | 64
+Four Concealed Pungs | Four concealed pungs or kongs. | Does not combine with concealed pung-, kong- or melded kong-based fan, All Pungs and Concealed Hand. | 64
+Pure Terminal Chows | 123 123 55 789 789 in one suit. | Does not combine with Full Flush, Half Flush, All Chows, Pure Double Chow, Two Terminal Chows, One Voided Suit or No Honors. | 64
+Quadruple Chow | Four identical chows. | Does not combine with Pure Triple Chow, Tile Hog or Pure Double Chow. | 48
+Four Pure Shifted Pungs | Four pungs in one suit, of which the numbers are off by one. | Does not combine with Pure Shifted Pungs or All Pungs. | 48
+Four Shifted Chows | Four chows in one suit, of which the numbers are off by one or two. | Does not combine with Pure Shifted Chows. | 32
+Three Kongs |  | Does not combine with concealed pung-, kong- or melded kong-based fan, except with unrelated pungs or kongs. | 32
+All Terminals and Honors | Four pungs or kongs and one pair of 1s, 9s, winds and dragons. | Does not combine with Seven Pairs, All Pungs or Outside Hand. | 32
+Seven Pairs | An irregular hand with seven pairs. | Does not combine with All Green, All Terminals, All Honors, All Terminals and Honors, All Even, Upper Tiles, Middle Tiles, Lower Tiles, Upper Four, Lower Four, Outside Hand, Concealed Hand or Single Wait. | 24
+Greater Honors and Knitted Tiles | An irregular hand with 1, 4 and/or 7 in one suit, 2, 5 and/or 8 in a second suit, 3, 6 and/or 9 in the third suit, and one of each wind and dragon with no pair. | Does not combine with Lesser Honors and Knitted Tiles, All Types or Concealed Hand. | 24
+All Even | Four pungs or kongs and one pair of even-numbered tiles. | Does not combine with Seven Pairs, All Pungs, All Simples or No Honors. | 24
+Full Flush | A hand with only one suit. | Does not combine with Half Flush, One Voided Suit or No Honors. | 24
+Pure Triple Chow | Three identical chows. | Does not combine with Pure Double Chow. | 24
+Pure Shifted Pungs | Three pungs in one suit, of which the numbers are off by one. |  | 24
+Upper Tiles | A hand, of which all sets and the pair have only tiles numbered from 7 to 9. | Does not combine with Seven Pairs, Upper Four or No Honors. | 24
+Middle Tiles | A hand, of which all sets and the pair have only tiles numbered from 4 to 6. | Does not combine with Seven Pairs, All Simples or No Honors. | 24
+Lower Tiles | A hand, of which all sets and the pair have only tiles numbered from 1 to 3. | Does not combine with Seven Pairs, Lower Four or No Honors. | 24
+Pure Straight | 123, 456 and 789 chows in one suit. |  | 16
+Three-suited Terminal Chows | Two sets of 123 and 789 chows in two suits and a pair of 5s in the third suit. | Does not combine with All Chows, Mixed Double Chow, Two Terminal Chows or No Honors. | 16
+Pure Shifted Chows | Three chows in one suit of which the numbers are off by one or two. |  | 16
+All Fives | A hand, of which all sets and the pair have a 5. | Does not combine with All Simples or No Honors. | 16
+Triple Pung | Three same-numbered pungs or kongs in three suits. | Does not combine with All Terminals or Double Pung. | 16
+Three Concealed Pungs | Three concealed pungs or kongs. | Does not combine with concealed pung-, kong- or melded kong-based fan, except with unrelated pungs or kongs. | 16
+Lesser Honors and Knitted Tiles | An irregular hand with 1, 4 and/or 7 in one suit, 2, 5 and/or 8 in a second suit, 3, 6 and/or 9 in the third suit, and winds and dragons with no pair. | Does not combine with All Types or Concealed Hand. | 12
+Upper Four | A hand, of which all sets and the pair have only tiles numbered from 6 to 9. | Does not combine with Seven Pairs or No Honors. | 12
+Knitted Straight | Irregular 147, 258 and 369 chows in three suits. |  | 12
+Lower Four | A hand, of which all sets and the pair have only tiles numbered from 1 to 4. | Does not combine with Seven Pairs or No Honors. | 12
+Big Three Winds | Three pungs or kongs of winds. |  | 12
+Mixed Straight | 123, 456 and 789 chows in three suits. |  | 8
+Reversible Tiles | A hand with only tiles that are 180° rotationally symmetrical. | Does not combine with One Voided Suit. | 8
+Mixed Triple Chow | Three same-numbered chows in three suits. |  | 8
+Mixed Shifted Pungs | Three pungs or kongs in three suits, of which the numbers are off by one. |  | 8
+Chicken Hand | A hand, which scores no fan other than Flower Tiles. |  | 8
+Last Tile Draw | Winning with the last draw. | Does not combine with Self-drawn. | 8
+Last Tile Claim | Winning with the last discard. |  | 8
+Out with Replacement Tile | Winning from the replacement tile of a kong. | Does not combine with Self-drawn. Reduce 1 point for kong. | 8
+Robbing The Kong | Winning with the tile an added kong is called with. | Does not combine with Last Tile. | 8
+All Pungs | A hand with four pungs or kongs. |  | 6
+Half Flush | A hand with only one suit, winds and dragons. | Does not combine with All Green or One Voided Suit | 6
+Mixed Shifted Chows | Three chows in three suits, of which the numbers are off by one. |  | 6
+All Types | A hand with circles, bamboo, characters, winds and dragons. |  | 6
+Melded Hand | A hand, of which all sets are called and which wins with a discarded tile. |  | 6
+Two Concealed Kongs |  | Does not combine with concealed pung-, kong- or melded kong-based fan. | 6
+Two Dragons | Two pungs or kongs of dragons. | Does not combine with Dragon Pung. | 6
+Outside Hand | A hand, of which all sets and the pair have a 1, 9, wind or dragon. | Does not combine with Seven Pairs. | 4
+Fully Concealed Hand | A self-drawn concealed hand. | Does not combine with Concealed Hand or Self-drawn. | 4
+Two Melded Kongs |  | Does not combine with concealed pung-, kong- or melded kong-based fan, except with unrelated pungs or kongs. | 4
+Last Tile | Winning with a tile, of which the three other copies are visible to all players. |  | 4
+Dragon Pung | A pung or kong of dragons. |  | 2
+Prevalent Wind | A pung or kong of the round wind. |  | 2
+Seat Wind | A pung or kong of the player's own wind. |  | 2
+Concealed Hand | A hand with called chows, pungs or kongs. | Does not combine with Nine Gates, Seven Shifted Pairs, Thirteen Orphans, Four Concealed Pungs, Seven Pairs, Greater Honors and Knitted Tiles or Lesser Honors and Knitted Tiles. | 2
+All Chows | Four chows and a non-honor pair. | Does not combine with No Honors. | 2
+Tile Hog | Hand contains four copies of a single type of tile in two or more sets or pairs. |  | 2
+Double Pung | Two same-numbered pungs or kongs in two suits. |  | 2
+Two Concealed Pungs | Two concealed pungs or kongs. | Does not combine with concealed pung-, kong- or melded kong-based fan, except with unrelated pungs or kongs. | 2
+Concealed Kong |  | Does not combine with concealed pung-, kong- or melded kong-based fan, except with unrelated pungs or kongs. | 2
+All Simples | A hand with only numbered tiles from 2 to 8. | Does not combine with No Honors. | 2
+Pure Double Chow | Two identical chows. |  | 1
+Mixed Double Chow | Two same-numbered chows in two suits. |  | 1
+Short Straight | Two chows, which together have six consecutive numbers. |  | 1
+Two Terminal Chows | 123 and 789 chows in one suit. |  | 1
+Pung of Terminals or Honors | A pung or kong of 1s, 9s or winds |  | 1
+Melded Kong |  | Does not combine with concealed pung-, kong- or melded kong-based fan, except with unrelated pungs or kongs. | 1
+One Voided Suit |  | Does not combine with All Green or Reversible Tiles. | 1
+No Honors |  | Does not combine with Upper Tiles, Middle Tiles, Lower Tiles, Upper Four or Lower Four. | 1
+Edge Wait | Waiting for only one type of tile, which completes a 123 or 789 chow with a 3 or 7. |  | 1
+Closed Wait | Waiting for only one type of tile, which completes a chow in the middle. |  | 1
+Single Wait | Waiting for only one type of tile, which completes a pair. | Does not combine with Thirteen Orphans. | 1
+Self-drawn | Winning with a drawn tile. | Does not combine with Last Tile Draw or Out with Replacement Tile. | 1
+Flower Tiles |  |  | 1`;
+
+  function slugifyFanName(name){
+    return name.replace(/[^A-Za-z0-9]+/g,' ').trim().split(' ')
+      .map((w,i)=> i===0 ? w.toLowerCase() : w.charAt(0).toUpperCase()+w.slice(1).toLowerCase())
+      .join('');
+  }
+
+  const FAN_DEFS = FAN_TABLE_RAW.trim().split('\n').slice(1).map(line=>{
+    const parts = line.split('|').map(s=>s.trim());
+    return { key: slugifyFanName(parts[0]), en: parts[0], desc: parts[1], notes: parts[2], points: parseInt(parts[3],10) };
+  });
+  const FAN_MAP = {};
+  FAN_DEFS.forEach(d=>{ FAN_MAP[d.key] = d; });
+
   /* ================= Named hand patterns ================= */
-
-  const PATTERN_ORDER = ['sevenPairs','allSequences','allTriplets','halfFlush','fullFlush',
-    'allHonors','bigThreeDragons','littleThreeDragons','bigFourWinds','smallFourWinds',
-    'mixedTerminals','pureTerminals','basicHand'];
-
-  const PATTERN_INFO = {
-    sevenPairs:        {en:'Seven Pairs',            cn:'七对',   desc:'Seven distinct pairs, instead of the usual four sets and a pair.'},
-    allSequences:      {en:'All Sequences',          cn:'平和',   desc:'Four sequences (runs of three) plus a pair — no triplets at all.'},
-    allTriplets:       {en:'All Triplets',           cn:'碰碰和', desc:'Four triplets plus a pair — no sequences at all.'},
-    halfFlush:         {en:'Half Flush',             cn:'混一色', desc:'Every tile comes from one suit, plus any mix of honor tiles.'},
-    fullFlush:         {en:'Full Flush',             cn:'清一色', desc:'Every tile comes from a single suit — no honors, no mixing suits.'},
-    allHonors:         {en:'All Honors',             cn:'字一色', desc:'Every tile is a wind or a dragon — no suited (numbered) tiles at all.'},
-    bigThreeDragons:   {en:'Big Three Dragons',      cn:'大三元', desc:'Triplets of all three dragons — Red, Green, and White.'},
-    littleThreeDragons:{en:'Little Three Dragons',   cn:'小三元', desc:'Triplets of two dragons, with the third dragon held as the pair.'},
-    bigFourWinds:      {en:'Big Four Winds',         cn:'大四喜', desc:'Triplets of all four winds — East, South, West, and North.'},
-    smallFourWinds:    {en:'Small Four Winds',       cn:'小四喜', desc:'Triplets of three winds, with the fourth wind held as the pair.'},
-    mixedTerminals:    {en:'All Terminals and Honors', cn:'混幺九', desc:'Every tile is a 1, a 9, or an honor tile — sequences are impossible.'},
-    pureTerminals:     {en:'Pure Terminals',         cn:'清幺九', desc:'Every tile is exactly a 1 or a 9 — no honors mixed in.'},
-    basicHand:         {en:'Basic Hand',             cn:'',       desc:'A valid, complete hand that doesn\u2019t match any special pattern above.'}
-  };
 
   function blockKind(group){
     return group[0]===group[1] ? 'triplet' : 'sequence';
@@ -611,7 +762,9 @@
 
   // Given an annotated leaf (standard 4-sets-plus-pair shape), work out
   // which named patterns it matches — or would match, if its active
-  // partial sets complete as expected.
+  // partial sets complete as expected. Used only for the in-progress
+  // "closest as ..." preview label; the full scoring engine (below) is
+  // used once a hand is actually complete.
   function classifyPatterns(ann){
     const names = [];
     const setBlocks = ann.melds.concat(ann.active);
@@ -619,8 +772,8 @@
 
     if(setBlocks.length===4 && head){
       const kinds = setBlocks.map(blockKind);
-      if(kinds.every(k=>k==='sequence')) names.push('allSequences');
-      if(kinds.every(k=>k==='triplet')) names.push('allTriplets');
+      if(kinds.every(k=>k==='sequence')) names.push('allChows');
+      if(kinds.every(k=>k==='triplet')) names.push('allPungs');
 
       const honorTripletTiles = setBlocks
         .filter((g,i)=>kinds[i]==='triplet' && suitOf(g[0])===HONOR)
@@ -634,7 +787,7 @@
       else if(dragonTriplets.length===2 && headIsDragon) names.push('littleThreeDragons');
 
       if(windTriplets.length===4) names.push('bigFourWinds');
-      else if(windTriplets.length===3 && headIsWind) names.push('smallFourWinds');
+      else if(windTriplets.length===3 && headIsWind) names.push('littleFourWinds');
     }
 
     const tiles = [];
@@ -655,43 +808,479 @@
 
       const allTermHonor = tiles.every(i=>suitOf(i)===HONOR || rankOf(i)===0 || rankOf(i)===8);
       if(allTermHonor){
-        names.push(hasHonor ? 'mixedTerminals' : 'pureTerminals');
+        names.push(hasHonor ? 'allTerminalsAndHonors' : 'allTerminals');
       }
     }
 
     if(names.length===0 && setBlocks.length===4 && head){
-      names.push('basicHand');
+      names.push('chickenHand');
     }
     return names;
   }
 
-  // Fixed illustrative 14-tile hands for the glossary page. Each is run
-  // through the real decompose()/classifyPatterns() pipeline so the
-  // example is guaranteed to actually match the pattern it's filed under.
+  // Fixed illustrative 14-tile hands for the glossary page, one per pattern
+  // that the DETECTORS engine above can recognize. Each is verified by
+  // actually decomposing it and checking the matching detector fires.
   const PATTERN_EXAMPLES = {
-    allSequences: [m(1),m(2),m(3), m(4),m(5),m(6), m(7),m(8),m(9), s(2),s(3),s(4), p(5),p(5)],
-    allTriplets: [m(1),m(1),m(1), s(5),s(5),s(5), p(9),p(9),p(9), EAST,EAST,EAST, m(7),m(7)],
+    allChows: [m(1),m(2),m(3), m(4),m(5),m(6), m(7),m(8),m(9), s(2),s(3),s(4), p(5),p(5)],
+    allPungs: [m(1),m(1),m(1), s(5),s(5),s(5), p(9),p(9),p(9), EAST,EAST,EAST, m(7),m(7)],
     halfFlush: [m(1),m(2),m(3), m(4),m(5),m(6), m(7),m(8),m(9), EAST,EAST,EAST, m(2),m(2)],
     fullFlush: [p(1),p(2),p(3), p(4),p(5),p(6), p(9),p(9),p(9), p(2),p(3),p(4), p(7),p(7)],
     allHonors: [EAST,EAST,EAST, SOUTH,SOUTH,SOUTH, RED,RED,RED, GREEN,GREEN,GREEN, WEST,WEST],
     bigThreeDragons: [RED,RED,RED, GREEN,GREEN,GREEN, WHITE,WHITE,WHITE, m(1),m(2),m(3), s(5),s(5)],
     littleThreeDragons: [RED,RED,RED, GREEN,GREEN,GREEN, WHITE,WHITE, m(1),m(2),m(3), s(4),s(5),s(6)],
     bigFourWinds: [EAST,EAST,EAST, SOUTH,SOUTH,SOUTH, WEST,WEST,WEST, NORTH,NORTH,NORTH, m(5),m(5)],
-    smallFourWinds: [EAST,EAST,EAST, SOUTH,SOUTH,SOUTH, WEST,WEST,WEST, NORTH,NORTH, m(3),m(4),m(5)],
-    mixedTerminals: [m(1),m(1),m(1), m(9),m(9),m(9), s(1),s(1),s(1), EAST,EAST,EAST, p(9),p(9)],
-    pureTerminals: [m(1),m(1),m(1), m(9),m(9),m(9), s(1),s(1),s(1), p(9),p(9),p(9), s(9),s(9)],
-    basicHand: [m(1),m(2),m(3), s(4),s(5),s(6), p(9),p(9),p(9), EAST,EAST,EAST, m(7),m(7)]
+    littleFourWinds: [EAST,EAST,EAST, SOUTH,SOUTH,SOUTH, WEST,WEST,WEST, NORTH,NORTH, m(3),m(4),m(5)],
+    allTerminalsAndHonors: [m(1),m(1),m(1), m(9),m(9),m(9), s(1),s(1),s(1), EAST,EAST,EAST, p(9),p(9)],
+    allTerminals: [m(1),m(1),m(1), m(9),m(9),m(9), s(1),s(1),s(1), p(9),p(9),p(9), s(9),s(9)],
+    allGreen: [s(2),s(3),s(4), s(6),s(6),s(6), s(8),s(8),s(8), GREEN,GREEN,GREEN, s(4),s(4)],
+    nineGates: [m(1),m(1),m(1), m(2),m(3),m(4), m(5),m(5), m(6),m(7),m(8), m(9),m(9),m(9)],
+    fourConcealedPungs: [m(3),m(3),m(3), s(7),s(7),s(7), p(2),p(2),p(2), WHITE,WHITE,WHITE, m(9),m(9)],
+    pureTerminalChows: [p(1),p(2),p(3), p(1),p(2),p(3), p(7),p(8),p(9), p(7),p(8),p(9), p(5),p(5)],
+    quadrupleChow: [m(2),m(3),m(4), m(2),m(3),m(4), m(2),m(3),m(4), m(2),m(3),m(4), s(7),s(7)],
+    fourPureShiftedPungs: [m(2),m(2),m(2), m(3),m(3),m(3), m(4),m(4),m(4), m(5),m(5),m(5), s(9),s(9)],
+    fourShiftedChows: [m(1),m(2),m(3), m(2),m(3),m(4), m(3),m(4),m(5), m(4),m(5),m(6), s(9),s(9)],
+    allEven: [m(2),m(2),m(2), m(4),m(4),m(4), s(6),s(6),s(6), p(8),p(8),p(8), s(2),s(2)],
+    pureTripleChow: [p(3),p(4),p(5), p(3),p(4),p(5), p(3),p(4),p(5), s(6),s(6),s(6), m(9),m(9)],
+    pureShiftedPungs: [m(3),m(3),m(3), m(4),m(4),m(4), m(5),m(5),m(5), s(6),s(7),s(8), p(9),p(9)],
+    upperTiles: [m(7),m(8),m(9), s(7),s(8),s(9), p(7),p(7),p(7), p(8),p(8),p(8), p(9),p(9)],
+    middleTiles: [m(4),m(5),m(6), s(4),s(5),s(6), p(4),p(4),p(4), p(5),p(5),p(5), p(6),p(6)],
+    lowerTiles: [m(1),m(2),m(3), s(1),s(2),s(3), p(1),p(1),p(1), p(2),p(2),p(2), p(3),p(3)],
+    pureStraight: [s(1),s(2),s(3), s(4),s(5),s(6), s(7),s(8),s(9), m(5),m(5),m(5), p(2),p(2)],
+    threeSuitedTerminalChows: [m(1),m(2),m(3), m(7),m(8),m(9), s(1),s(2),s(3), s(7),s(8),s(9), p(5),p(5)],
+    pureShiftedChows: [p(1),p(2),p(3), p(2),p(3),p(4), p(3),p(4),p(5), m(9),m(9),m(9), s(7),s(7)],
+    allFives: [m(5),m(5),m(5), s(3),s(4),s(5), p(4),p(5),p(6), p(5),p(6),p(7), s(5),s(5)],
+    triplePung: [m(7),m(7),m(7), s(7),s(7),s(7), p(7),p(7),p(7), m(2),m(3),m(4), s(9),s(9)],
+    threeConcealedPungs: [m(2),m(2),m(2), s(5),s(5),s(5), p(8),p(8),p(8), m(5),m(6),m(7), s(2),s(2)],
+    upperFour: [m(6),m(7),m(8), s(7),s(8),s(9), p(6),p(6),p(6), p(8),p(8),p(8), p(9),p(9)],
+    lowerFour: [m(1),m(2),m(3), s(2),s(3),s(4), p(1),p(1),p(1), p(3),p(3),p(3), p(4),p(4)],
+    bigThreeWinds: [EAST,EAST,EAST, SOUTH,SOUTH,SOUTH, WEST,WEST,WEST, m(2),m(3),m(4), p(9),p(9)],
+    mixedStraight: [m(1),m(2),m(3), s(4),s(5),s(6), p(7),p(8),p(9), m(7),m(7),m(7), s(2),s(2)],
+    reversibleTiles: [p(1),p(2),p(3), p(2),p(3),p(4), s(4),s(5),s(6), WHITE,WHITE,WHITE, s(8),s(8)],
+    mixedTripleChow: [m(3),m(4),m(5), s(3),s(4),s(5), p(3),p(4),p(5), EAST,EAST,EAST, m(9),m(9)],
+    mixedShiftedPungs: [m(3),m(3),m(3), s(4),s(4),s(4), p(5),p(5),p(5), m(7),m(8),m(9), s(1),s(1)],
+    allTypes: [m(2),m(3),m(4), s(5),s(6),s(7), p(1),p(1),p(1), EAST,EAST,EAST, p(9),p(9)],
+    mixedShiftedChows: [m(1),m(2),m(3), s(2),s(3),s(4), p(3),p(4),p(5), EAST,EAST,EAST, m(9),m(9)],
+    twoDragons: [RED,RED,RED, GREEN,GREEN,GREEN, m(2),m(3),m(4), s(5),s(5),s(5), p(9),p(9)],
+    outsideHand: [m(1),m(2),m(3), s(7),s(8),s(9), p(1),p(1),p(1), EAST,EAST,EAST, p(9),p(9)],
+    dragonPung: [RED,RED,RED, m(2),m(3),m(4), s(5),s(6),s(7), p(8),p(8),p(8), m(9),m(9)],
+    prevalentWind: [EAST,EAST,EAST, m(2),m(3),m(4), s(5),s(6),s(7), p(8),p(8),p(8), m(9),m(9)],
+    seatWind: [EAST,EAST,EAST, m(2),m(3),m(4), s(5),s(6),s(7), p(8),p(8),p(8), m(9),m(9)],
+    tileHog: [m(5),m(5),m(5), m(4),m(5),m(6), s(7),s(8),s(9), p(2),p(2),p(2), p(9),p(9)],
+    doublePung: [m(6),m(6),m(6), s(6),s(6),s(6), p(1),p(2),p(3), EAST,EAST,EAST, p(9),p(9)],
+    twoConcealedPungs: [m(6),m(6),m(6), s(3),s(3),s(3), p(1),p(2),p(3), p(4),p(5),p(6), m(9),m(9)],
+    allSimples: [m(2),m(3),m(4), s(5),s(6),s(7), p(3),p(3),p(3), p(6),p(6),p(6), m(7),m(7)],
+    pureDoubleChow: [m(2),m(3),m(4), m(2),m(3),m(4), s(5),s(6),s(7), p(8),p(8),p(8), p(2),p(2)],
+    mixedDoubleChow: [m(3),m(4),m(5), s(3),s(4),s(5), p(6),p(6),p(6), EAST,EAST,EAST, p(9),p(9)],
+    shortStraight: [m(1),m(2),m(3), m(4),m(5),m(6), s(7),s(7),s(7), EAST,EAST,EAST, p(9),p(9)],
+    twoTerminalChows: [m(1),m(2),m(3), m(7),m(8),m(9), s(5),s(5),s(5), EAST,EAST,EAST, p(9),p(9)],
+    pungOfTerminalsOrHonors: [m(1),m(1),m(1), s(5),s(6),s(7), p(3),p(4),p(5), EAST,EAST,EAST, p(9),p(9)],
+    oneVoidedSuit: [m(1),m(2),m(3), m(4),m(5),m(6), s(7),s(7),s(7), EAST,EAST,EAST, s(9),s(9)],
+    noHonors: [m(1),m(2),m(3), s(4),s(5),s(6), p(7),p(8),p(9), p(2),p(2),p(2), s(8),s(8)]
   };
   const SEVEN_PAIRS_EXAMPLE = [m(1),m(1), m(5),m(5), s(2),s(2), s(8),s(8), p(3),p(3), p(9),p(9), RED,RED];
+  const SEVEN_SHIFTED_PAIRS_EXAMPLE = [m(1),m(1), m(2),m(2), m(3),m(3), m(4),m(4), m(5),m(5), m(6),m(6), m(7),m(7)];
+  const THIRTEEN_ORPHANS_EXAMPLE = [m(1),m(9),s(1),s(9),p(1),p(9),EAST,SOUTH,WEST,NORTH,RED,GREEN,WHITE,EAST];
+  const GREATER_KNITTED_EXAMPLE = { honors:[EAST,SOUTH,WEST,NORTH,RED,GREEN,WHITE], knitted:[m(1),m(4),s(2),s(5),s(8),p(3),p(6)] };
+  const LESSER_KNITTED_EXAMPLE = { honors:[EAST,SOUTH,RED,GREEN,WHITE], knitted:[m(1),m(4),m(7),s(2),s(5),s(8),p(3),p(6),p(9)] };
+  const KNITTED_STRAIGHT_EXAMPLE = { knitted:[m(1),m(4),m(7),s(2),s(5),s(8),p(3),p(6),p(9)], meld:[m(9),m(9),m(9)], pair:[s(9),s(9)] };
+  const GENERIC_WIN_EXAMPLE = [m(2),m(3),m(4), s(5),s(6),s(7), p(3),p(4),p(5), p(6),p(6),p(6), m(8),m(8)];
 
+  // Detector-backed patterns: find a decomposition of the example hand
+  // whose standard-shape context actually satisfies that fan's detector.
   function findExampleLeaf(key){
     const counts = countsFromList(PATTERN_EXAMPLES[key]);
-    const leaves = analyze(counts).standardLeaves;
+    const leaves = decompose(counts).filter(l=> l.melds.length===4 && l.pairs.length===1 && l.taatsu.length===0 && l.singles.length===0);
     for(const leaf of leaves){
-      const ann = annotateLeaf(leaf);
-      if(classifyPatterns(ann).includes(key)) return ann;
+      const std = buildStdCtx(leaf.melds, leaf.pairs[0], EAST, EAST);
+      if(DETECTORS[key] && DETECTORS[key](std) > 0){
+        return { melds: leaf.melds, head: leaf.pairs[0], active: [], excess: [], singles: [] };
+      }
     }
-    return annotateLeaf(leaves[0]);
+    return leaves.length ? { melds: leaves[0].melds, head: leaves[0].pairs[0], active: [], excess: [], singles: [] } : null;
+  }
+
+  // First valid complete decomposition, with no detector requirement —
+  // used for patterns whose fan depends on how a hand was won, not its shape.
+  function firstCompleteLeaf(tileList){
+    const counts = countsFromList(tileList);
+    const leaves = decompose(counts).filter(l=> l.melds.length===4 && l.pairs.length===1 && l.taatsu.length===0 && l.singles.length===0);
+    if(!leaves.length) return null;
+    return { melds: leaves[0].melds, head: leaves[0].pairs[0], active: [], excess: [], singles: [] };
+  }
+
+  /* ================= Full fan scoring engine (complete hands only) ================= */
+  // Detects as many of the 81 patterns above as are computable from a
+  // static tile count (no meld/concealed tracking, no self-draw or wait
+  // info, no kongs/flowers) — see notes in the glossary for what's excluded.
+
+  const GREEN_TILES = new Set([s(2),s(3),s(4),s(6),s(8), GREEN]);
+  const REVERSIBLE_TILES = new Set([p(1),p(2),p(3),p(4),p(5),p(8),p(9), s(2),s(4),s(5),s(6),s(8),s(9), WHITE]);
+
+  function meldInfo(g){
+    const kind = g[0]===g[1] ? 'triplet' : 'sequence';
+    return { tile:g[0], suit:suitOf(g[0]), rank: kind==='triplet' ? rankOf(g[0]) : null, startRank: kind==='sequence' ? rankOf(g[0]) : null, kind };
+  }
+  function headInfo(pairGroup){
+    const t = pairGroup[0];
+    return { tile:t, suit:suitOf(t), rank:rankOf(t), isHonor:suitOf(t)===HONOR, isDragon:t>=31, isWind:t>=27&&t<=30 };
+  }
+
+  function buildStdCtx(melds, headGroup, pWind, sWind){
+    const meldsInfo = melds.map(meldInfo);
+    const head = headInfo(headGroup);
+    const tiles = melds.reduce((a,g)=>a.concat(g),[]).concat(headGroup);
+    const triplets = meldsInfo.filter(m=>m.kind==='triplet');
+    const sequences = meldsInfo.filter(m=>m.kind==='sequence');
+    const honorTriplets = triplets.filter(m=>m.suit===HONOR);
+    const windTriplets = honorTriplets.filter(m=>m.tile>=27 && m.tile<=30);
+    const dragonTriplets = honorTriplets.filter(m=>m.tile>=31);
+    const suitsUsed = new Set(tiles.filter(t=>suitOf(t)!==HONOR).map(suitOf));
+    const hasHonor = tiles.some(t=>suitOf(t)===HONOR);
+    return { melds:meldsInfo, head, tiles, triplets, sequences, honorTriplets, windTriplets, dragonTriplets, suitsUsed, hasHonor, prevalentWind:pWind, seatWind:sWind };
+  }
+
+  function isTermOrHonorTriplet(m){ return m.suit===HONOR || m.rank===0 || m.rank===8; }
+  function isTermOrHonorHead(h){ return h.isHonor || h.rank===0 || h.rank===8; }
+
+  function detectNineGates(std){
+    if(std.suitsUsed.size!==1 || std.hasHonor || std.tiles.length!==14) return false;
+    const counts = new Array(9).fill(0);
+    std.tiles.forEach(t=>{ counts[rankOf(t)]++; });
+    if(counts[0]<3 || counts[8]<3) return false;
+    for(let r=1;r<8;r++) if(counts[r]<1) return false;
+    return true;
+  }
+  function sameChowGroups(std){
+    const map = new Map();
+    std.sequences.forEach(m=>{
+      const k = m.suit+'_'+m.startRank;
+      map.set(k, (map.get(k)||0)+1);
+    });
+    return map;
+  }
+  function maxSameChowCount(std){
+    let max=0;
+    sameChowGroups(std).forEach(v=>{ if(v>max) max=v; });
+    return max;
+  }
+  function detectShiftedPungs(std, n){
+    const bySuit = {};
+    std.triplets.forEach(m=>{ if(m.suit!==HONOR) (bySuit[m.suit] ||= []).push(m.rank); });
+    for(const suit in bySuit){
+      const ranks = bySuit[suit].slice().sort((a,b)=>a-b);
+      for(let i=0;i+n-1<ranks.length;i++){
+        let ok=true;
+        for(let j=1;j<n;j++) if(ranks[i+j]!==ranks[i]+j){ ok=false; break; }
+        if(ok) return true;
+      }
+    }
+    return false;
+  }
+  function detectShiftedChows(std, n){
+    const bySuit = {};
+    std.sequences.forEach(m=>{ (bySuit[m.suit] ||= []).push(m.startRank); });
+    for(const suit in bySuit){
+      const ranks = bySuit[suit].slice().sort((a,b)=>a-b);
+      for(let i=0;i+n-1<ranks.length;i++){
+        for(const step of [1,2]){
+          let ok=true;
+          for(let j=1;j<n;j++) if(ranks[i+j]!==ranks[i]+step*j){ ok=false; break; }
+          if(ok) return true;
+        }
+      }
+    }
+    return false;
+  }
+  function detectPureStraight(std){
+    const bySuit = {};
+    std.sequences.forEach(m=>{ (bySuit[m.suit] ||= new Set()).add(m.startRank); });
+    return Object.values(bySuit).some(s=>s.has(0)&&s.has(3)&&s.has(6));
+  }
+  function detectThreeSuitedTerminalChows(std){
+    if(std.sequences.length!==4) return false;
+    const bySuit = {};
+    std.sequences.forEach(m=>{ (bySuit[m.suit] ||= []).push(m.startRank); });
+    const suitsWithBoth = Object.keys(bySuit).map(Number).filter(s=> bySuit[s].includes(0) && bySuit[s].includes(6));
+    if(suitsWithBoth.length!==2) return false;
+    const thirdSuit = [SUIT_M,SUIT_S,SUIT_P].find(s=>!suitsWithBoth.includes(s));
+    return !std.head.isHonor && std.head.suit===thirdSuit && std.head.rank===4;
+  }
+  function detectAllFives(std){
+    for(const m of std.melds){
+      if(m.kind==='triplet'){ if(m.suit===HONOR || m.rank!==4) return false; }
+      else if(m.startRank<2 || m.startRank>4) return false;
+    }
+    return !std.head.isHonor && std.head.rank===4;
+  }
+  function maxSuitedSameRankPungs(std){
+    const byRank = {};
+    std.triplets.forEach(m=>{ if(m.suit!==HONOR) (byRank[m.rank] ||= new Set()).add(m.suit); });
+    let max=0;
+    Object.values(byRank).forEach(s=>{ if(s.size>max) max=s.size; });
+    return max;
+  }
+  function detectMixedStraight(std){
+    const bySuit = {};
+    std.sequences.forEach(m=>{ if([0,3,6].includes(m.startRank)) (bySuit[m.suit] ||= new Set()).add(m.startRank); });
+    const perms = [[0,3,6],[0,6,3],[3,0,6],[3,6,0],[6,0,3],[6,3,0]];
+    const suitsArr = [SUIT_M,SUIT_S,SUIT_P];
+    return perms.some(p=> suitsArr.every((s,i)=> bySuit[s] && bySuit[s].has(p[i])));
+  }
+  function detectMixedTripleChow(std){
+    const bySuit = {};
+    std.sequences.forEach(m=>{ (bySuit[m.suit] ||= new Set()).add(m.startRank); });
+    if(![SUIT_M,SUIT_S,SUIT_P].every(s=>bySuit[s] && bySuit[s].size>0)) return false;
+    for(let r=0;r<=6;r++) if([SUIT_M,SUIT_S,SUIT_P].every(s=>bySuit[s].has(r))) return true;
+    return false;
+  }
+  function detectMixedShiftedPungs(std){
+    const bySuit = {};
+    std.triplets.forEach(m=>{ if(m.suit!==HONOR) (bySuit[m.suit] ||= []).push(m.rank); });
+    if(![SUIT_M,SUIT_S,SUIT_P].every(s=>bySuit[s] && bySuit[s].length)) return false;
+    for(const rm of bySuit[SUIT_M]) for(const rs of bySuit[SUIT_S]) for(const rp of bySuit[SUIT_P]){
+      const sorted=[rm,rs,rp].sort((a,b)=>a-b);
+      if(sorted[1]===sorted[0]+1 && sorted[2]===sorted[1]+1) return true;
+    }
+    return false;
+  }
+  function detectMixedShiftedChows(std){
+    const bySuit = {};
+    std.sequences.forEach(m=>{ (bySuit[m.suit] ||= []).push(m.startRank); });
+    if(![SUIT_M,SUIT_S,SUIT_P].every(s=>bySuit[s] && bySuit[s].length)) return false;
+    for(const rm of bySuit[SUIT_M]) for(const rs of bySuit[SUIT_S]) for(const rp of bySuit[SUIT_P]){
+      const sorted=[rm,rs,rp].sort((a,b)=>a-b);
+      if(sorted[1]===sorted[0]+1 && sorted[2]===sorted[1]+1) return true;
+    }
+    return false;
+  }
+  function detectOutsideHand(std){
+    for(const m of std.melds){
+      if(m.kind==='sequence'){ if(m.startRank!==0 && m.startRank!==6) return false; }
+      else if(m.suit!==HONOR && m.rank!==0 && m.rank!==8) return false;
+    }
+    return std.head.isHonor || std.head.rank===0 || std.head.rank===8;
+  }
+  function detectTileHog(std){
+    const freq = {};
+    std.tiles.forEach(t=>{ freq[t]=(freq[t]||0)+1; });
+    return Object.values(freq).some(v=>v===4);
+  }
+  function countDoubleChowGroups(std){
+    let count=0;
+    sameChowGroups(std).forEach(v=>{ if(v===2) count++; });
+    return count;
+  }
+  function countMixedDoubleChowGroups(std){
+    const byStart = {};
+    std.sequences.forEach(m=>{ (byStart[m.startRank] ||= new Set()).add(m.suit); });
+    let count=0;
+    Object.values(byStart).forEach(s=>{ if(s.size===2) count++; });
+    return count;
+  }
+  function countShortStraight(std){
+    const bySuit = {};
+    std.sequences.forEach(m=>{ (bySuit[m.suit] ||= []).push(m.startRank); });
+    let count=0;
+    Object.values(bySuit).forEach(arr=>{
+      for(let i=0;i<arr.length;i++) for(let j=i+1;j<arr.length;j++) if(Math.abs(arr[i]-arr[j])===3) count++;
+    });
+    return count;
+  }
+  function detectTwoTerminalChows(std){
+    const bySuit = {};
+    std.sequences.forEach(m=>{ (bySuit[m.suit] ||= new Set()).add(m.startRank); });
+    return Object.values(bySuit).some(s=>s.has(0)&&s.has(6));
+  }
+  function countPungOfTerminalsOrHonors(std){
+    let count=0;
+    std.triplets.forEach(m=>{
+      if(m.suit!==HONOR && (m.rank===0||m.rank===8)) count++;
+      else if(m.tile>=27 && m.tile<=30) count++;
+    });
+    return count;
+  }
+  function detectPureTerminalChows(std){
+    if(std.sequences.length!==4) return false;
+    const bySuit = {};
+    std.sequences.forEach(m=>{ (bySuit[m.suit] ||= []).push(m.startRank); });
+    const suits = Object.keys(bySuit);
+    if(suits.length!==1) return false;
+    const suit = Number(suits[0]);
+    const starts = bySuit[suit];
+    if(starts.filter(r=>r===0).length!==2 || starts.filter(r=>r===6).length!==2) return false;
+    return !std.head.isHonor && std.head.suit===suit && std.head.rank===4;
+  }
+
+  const DETECTORS = {
+    bigFourWinds: std => std.windTriplets.length===4 ? 1:0,
+    bigThreeDragons: std => std.dragonTriplets.length===3 ? 1:0,
+    allGreen: std => std.tiles.every(t=>GREEN_TILES.has(t)) ? 1:0,
+    nineGates: std => detectNineGates(std) ? 1:0,
+    allTerminals: std => (std.triplets.length===4 && std.triplets.every(m=>m.suit!==HONOR && (m.rank===0||m.rank===8)) && !std.head.isHonor && (std.head.rank===0||std.head.rank===8)) ? 1:0,
+    littleFourWinds: std => (std.windTriplets.length===3 && std.head.isWind) ? 1:0,
+    littleThreeDragons: std => (std.dragonTriplets.length===2 && std.head.isDragon) ? 1:0,
+    allHonors: std => (std.triplets.length===4 && std.honorTriplets.length===4 && std.head.isHonor) ? 1:0,
+    fourConcealedPungs: std => std.triplets.length===4 ? 1:0,
+    pureTerminalChows: std => detectPureTerminalChows(std) ? 1:0,
+    quadrupleChow: std => maxSameChowCount(std)===4 ? 1:0,
+    fourPureShiftedPungs: std => detectShiftedPungs(std,4) ? 1:0,
+    fourShiftedChows: std => detectShiftedChows(std,4) ? 1:0,
+    allTerminalsAndHonors: std => (std.triplets.length===4 && std.triplets.every(isTermOrHonorTriplet) && isTermOrHonorHead(std.head)) ? 1:0,
+    allEven: std => (std.triplets.length===4 && std.triplets.every(m=>m.suit!==HONOR && [1,3,5,7].includes(m.rank)) && !std.head.isHonor && [1,3,5,7].includes(std.head.rank)) ? 1:0,
+    fullFlush: std => (std.suitsUsed.size===1 && !std.hasHonor) ? 1:0,
+    pureTripleChow: std => maxSameChowCount(std)===3 ? 1:0,
+    pureShiftedPungs: std => detectShiftedPungs(std,3) ? 1:0,
+    upperTiles: std => (std.tiles.every(t=>suitOf(t)!==HONOR && rankOf(t)>=6)) ? 1:0,
+    middleTiles: std => (std.tiles.every(t=>suitOf(t)!==HONOR && rankOf(t)>=3 && rankOf(t)<=5)) ? 1:0,
+    lowerTiles: std => (std.tiles.every(t=>suitOf(t)!==HONOR && rankOf(t)<=2)) ? 1:0,
+    pureStraight: std => detectPureStraight(std) ? 1:0,
+    threeSuitedTerminalChows: std => detectThreeSuitedTerminalChows(std) ? 1:0,
+    pureShiftedChows: std => detectShiftedChows(std,3) ? 1:0,
+    allFives: std => detectAllFives(std) ? 1:0,
+    triplePung: std => maxSuitedSameRankPungs(std)===3 ? 1:0,
+    threeConcealedPungs: std => std.triplets.length===3 ? 1:0,
+    upperFour: std => (std.tiles.every(t=>suitOf(t)!==HONOR && rankOf(t)>=5)) ? 1:0,
+    lowerFour: std => (std.tiles.every(t=>suitOf(t)!==HONOR && rankOf(t)<=3)) ? 1:0,
+    bigThreeWinds: std => std.windTriplets.length===3 ? 1:0,
+    mixedStraight: std => detectMixedStraight(std) ? 1:0,
+    reversibleTiles: std => std.tiles.every(t=>REVERSIBLE_TILES.has(t)) ? 1:0,
+    mixedTripleChow: std => detectMixedTripleChow(std) ? 1:0,
+    mixedShiftedPungs: std => detectMixedShiftedPungs(std) ? 1:0,
+    allPungs: std => std.triplets.length===4 ? 1:0,
+    halfFlush: std => (std.suitsUsed.size===1 && std.hasHonor) ? 1:0,
+    mixedShiftedChows: std => detectMixedShiftedChows(std) ? 1:0,
+    allTypes: std => (std.suitsUsed.size===3 && std.hasHonor) ? 1:0,
+    twoDragons: std => std.dragonTriplets.length===2 ? 1:0,
+    outsideHand: std => detectOutsideHand(std) ? 1:0,
+    dragonPung: std => std.dragonTriplets.length===1 ? 1:0,
+    prevalentWind: std => std.windTriplets.some(m=>m.tile===std.prevalentWind) ? 1:0,
+    seatWind: std => std.windTriplets.some(m=>m.tile===std.seatWind) ? 1:0,
+    allChows: std => (std.sequences.length===4 && !std.head.isHonor) ? 1:0,
+    tileHog: std => detectTileHog(std) ? 1:0,
+    doublePung: std => maxSuitedSameRankPungs(std)===2 ? 1:0,
+    twoConcealedPungs: std => std.triplets.length===2 ? 1:0,
+    allSimples: std => (std.tiles.every(t=>suitOf(t)!==HONOR && rankOf(t)>=1 && rankOf(t)<=7)) ? 1:0,
+    pureDoubleChow: std => countDoubleChowGroups(std),
+    mixedDoubleChow: std => countMixedDoubleChowGroups(std),
+    shortStraight: std => countShortStraight(std),
+    twoTerminalChows: std => detectTwoTerminalChows(std) ? 1:0,
+    pungOfTerminalsOrHonors: std => countPungOfTerminalsOrHonors(std),
+    oneVoidedSuit: std => std.suitsUsed.size===2 ? 1:0,
+    noHonors: std => !std.hasHonor ? 1:0
+  };
+
+  // Pairs of fan keys that must not both be scored on the same hand.
+  const EXCLUDE_PAIRS = [
+    ['bigFourWinds','littleFourWinds'], ['bigFourWinds','bigThreeWinds'], ['bigFourWinds','prevalentWind'],
+    ['bigFourWinds','seatWind'], ['bigFourWinds','allPungs'], ['bigFourWinds','fourConcealedPungs'], ['bigFourWinds','pungOfTerminalsOrHonors'],
+    ['littleFourWinds','bigThreeWinds'], ['littleFourWinds','pungOfTerminalsOrHonors'],
+    ['bigThreeWinds','pungOfTerminalsOrHonors'],
+    ['bigThreeDragons','littleThreeDragons'], ['bigThreeDragons','twoDragons'], ['bigThreeDragons','dragonPung'],
+    ['littleThreeDragons','twoDragons'], ['littleThreeDragons','dragonPung'],
+    ['twoDragons','dragonPung'],
+    ['allGreen','halfFlush'], ['allGreen','oneVoidedSuit'],
+    ['nineGates','fullFlush'], ['nineGates','halfFlush'], ['nineGates','noHonors'],
+    ['allTerminals','allTerminalsAndHonors'], ['allTerminals','allPungs'], ['allTerminals','fourConcealedPungs'],
+    ['allTerminals','outsideHand'], ['allTerminals','pungOfTerminalsOrHonors'], ['allTerminals','noHonors'], ['allTerminals','triplePung'], ['allTerminals','doublePung'],
+    ['allHonors','allTerminalsAndHonors'], ['allHonors','allPungs'], ['allHonors','fourConcealedPungs'], ['allHonors','halfFlush'], ['allHonors','outsideHand'],
+    ['allTerminalsAndHonors','allPungs'], ['allTerminalsAndHonors','fourConcealedPungs'], ['allTerminalsAndHonors','outsideHand'],
+    ['allEven','allPungs'], ['allEven','fourConcealedPungs'], ['allEven','allSimples'], ['allEven','noHonors'],
+    ['fullFlush','halfFlush'], ['fullFlush','oneVoidedSuit'], ['fullFlush','noHonors'],
+    ['halfFlush','oneVoidedSuit'],
+    ['upperTiles','upperFour'], ['upperTiles','noHonors'],
+    ['middleTiles','allSimples'], ['middleTiles','noHonors'],
+    ['lowerTiles','lowerFour'], ['lowerTiles','noHonors'],
+    ['upperFour','noHonors'], ['lowerFour','noHonors'],
+    ['allChows','noHonors'], ['allSimples','noHonors'],
+    ['pureTerminalChows','fullFlush'], ['pureTerminalChows','halfFlush'], ['pureTerminalChows','allChows'],
+    ['pureTerminalChows','pureDoubleChow'], ['pureTerminalChows','twoTerminalChows'], ['pureTerminalChows','oneVoidedSuit'], ['pureTerminalChows','noHonors'],
+    ['quadrupleChow','pureTripleChow'], ['quadrupleChow','tileHog'], ['quadrupleChow','pureDoubleChow'],
+    ['fourPureShiftedPungs','pureShiftedPungs'], ['fourPureShiftedPungs','allPungs'], ['fourPureShiftedPungs','fourConcealedPungs'],
+    ['fourShiftedChows','pureShiftedChows'],
+    ['fourConcealedPungs','allPungs'], ['fourConcealedPungs','threeConcealedPungs'], ['fourConcealedPungs','twoConcealedPungs'],
+    ['threeConcealedPungs','twoConcealedPungs'],
+    ['triplePung','doublePung']
+  ];
+  const EXCLUDE_MAP = {};
+  EXCLUDE_PAIRS.forEach(([a,b])=>{
+    (EXCLUDE_MAP[a] ||= new Set()).add(b);
+    (EXCLUDE_MAP[b] ||= new Set()).add(a);
+  });
+
+  function computeStandardHits(std){
+    const hits = [];
+    Object.keys(DETECTORS).forEach(key=>{
+      const count = DETECTORS[key](std);
+      if(count>0) hits.push({key, points:FAN_MAP[key].points, count});
+    });
+    return hits;
+  }
+
+  function resolveFans(hits){
+    const sorted = hits.slice().sort((a,b)=> (b.points*b.count)-(a.points*a.count));
+    const selected = [];
+    const chosen = new Set();
+    sorted.forEach(h=>{
+      const conflict = [...chosen].some(k => (EXCLUDE_MAP[h.key] && EXCLUDE_MAP[h.key].has(k)) || (EXCLUDE_MAP[k] && EXCLUDE_MAP[k].has(h.key)));
+      if(!conflict){ selected.push(h); chosen.add(h.key); }
+    });
+    let total = selected.reduce((a,h)=>a+h.points*h.count, 0);
+    if(selected.length===0){
+      selected.push({key:'chickenHand', points:FAN_MAP.chickenHand.points, count:1});
+      total = FAN_MAP.chickenHand.points;
+    }
+    return { selected, total };
+  }
+
+  const THIRTEEN_ORPHAN_TILES = [m(1),m(9),s(1),s(9),p(1),p(9),EAST,SOUTH,WEST,NORTH,RED,GREEN,WHITE];
+  function isThirteenOrphans(counts){
+    let extra=0;
+    for(const idx of THIRTEEN_ORPHAN_TILES){
+      if(counts[idx]<1 || counts[idx]>2) return false;
+      if(counts[idx]===2) extra++;
+    }
+    const sumAll = counts.reduce((a,b)=>a+b,0);
+    const sumOrphans = THIRTEEN_ORPHAN_TILES.reduce((a,i)=>a+counts[i],0);
+    return sumAll===14 && sumOrphans===14 && extra===1;
+  }
+  function isSevenShiftedPairs(counts){
+    const pairs=[];
+    for(let i=0;i<34;i++){
+      if(counts[i]===2) pairs.push(i);
+      else if(counts[i]!==0) return false;
+    }
+    if(pairs.length!==7) return false;
+    const suit = suitOf(pairs[0]);
+    if(suit===HONOR || !pairs.every(i=>suitOf(i)===suit)) return false;
+    const ranks = pairs.map(rankOf).sort((a,b)=>a-b);
+    for(let i=1;i<7;i++) if(ranks[i]!==ranks[i-1]+1) return false;
+    return true;
+  }
+
+  function scoreHand(counts, pWind, sWind){
+    const candidates = [];
+    if(isThirteenOrphans(counts)){
+      candidates.push({ kind:'thirteenOrphans', selected:[{key:'thirteenOrphans',points:FAN_MAP.thirteenOrphans.points,count:1}], total:FAN_MAP.thirteenOrphans.points });
+    }
+    if(isSevenShiftedPairs(counts)){
+      candidates.push({ kind:'sevenShiftedPairs', selected:[{key:'sevenShiftedPairs',points:FAN_MAP.sevenShiftedPairs.points,count:1}], total:FAN_MAP.sevenShiftedPairs.points });
+    }
+    if(sevenPairsShanten(counts)<=-1){
+      candidates.push({ kind:'sevenPairs', selected:[{key:'sevenPairs',points:FAN_MAP.sevenPairs.points,count:1}], total:FAN_MAP.sevenPairs.points });
+    }
+    const seen = new Set();
+    decompose(counts).forEach(leaf=>{
+      if(leaf.melds.length!==4 || leaf.pairs.length!==1 || leaf.taatsu.length!==0 || leaf.singles.length!==0) return;
+      const sig = JSON.stringify(leaf.melds.map(g=>g.slice()).sort()) + '|' + leaf.pairs[0].slice().sort();
+      if(seen.has(sig)) return;
+      seen.add(sig);
+      const std = buildStdCtx(leaf.melds, leaf.pairs[0], pWind, sWind);
+      const { selected, total } = resolveFans(computeStandardHits(std));
+      candidates.push({ kind:'standard', selected, total });
+    });
+    if(candidates.length===0) return null;
+    return candidates.reduce((best,c)=> c.total>best.total ? c : best);
   }
 
   /* ================= Rendering: shared tile component ================= */
@@ -801,17 +1390,17 @@
     const row = document.createElement('div');
     row.className='pattern-badges';
     keys.forEach(k=>{
-      const info = PATTERN_INFO[k];
+      const info = FAN_MAP[k];
       const pill = document.createElement('span');
       pill.className='pattern-pill';
-      pill.innerHTML = info.en + (info.cn ? ' <span class="cn cjk">'+info.cn+'</span>' : '');
+      pill.textContent = info.en;
       row.appendChild(pill);
     });
     container.appendChild(row);
   }
 
   function patternNamesText(keys){
-    return keys.map(k=>PATTERN_INFO[k].en).join(', ');
+    return keys.map(k=>FAN_MAP[k].en).join(', ');
   }
 
   function renderGroup(tiles, kind, waitNote){
@@ -899,6 +1488,36 @@
     return v+' tile'+(v===1?'':'s')+' away';
   }
 
+  function renderScoreSection(score){
+    const sec = document.createElement('section');
+    sec.className='block';
+    const h3 = document.createElement('h3');
+    h3.textContent = 'Scoring \u2014 1998 Chinese Official Rules';
+    sec.appendChild(h3);
+    const list = document.createElement('div');
+    list.className='discard-list';
+    score.selected.slice().sort((a,b)=>(b.points*b.count)-(a.points*a.count)).forEach(h=>{
+      const info = FAN_MAP[h.key];
+      const row = document.createElement('div');
+      row.className='discard-row';
+      const txt = document.createElement('div');
+      txt.className='txt';
+      txt.innerHTML = '<strong>'+info.en+'</strong>'+(h.count>1?' \u00d7'+h.count:'');
+      row.appendChild(txt);
+      const pts = document.createElement('div');
+      pts.className='fan-pts';
+      pts.textContent = (h.points*h.count)+' pt'+(h.points*h.count===1?'':'s');
+      row.appendChild(pts);
+      list.appendChild(row);
+    });
+    sec.appendChild(list);
+    const totalEl = document.createElement('div');
+    totalEl.className='fan-total';
+    totalEl.innerHTML = 'Total: <span class="num">'+score.total+'</span> point'+(score.total===1?'':'s');
+    sec.appendChild(totalEl);
+    return sec;
+  }
+
   function renderResults(){
     const panel = document.getElementById('resultsPanel');
     panel.innerHTML='';
@@ -945,6 +1564,9 @@
       banner.className='win-banner';
       banner.innerHTML = '<span class="glyph">和</span><span>Hand complete \u2014 '+namesText+'.</span>';
       panel.appendChild(banner);
+
+      const score = scoreHand(handCounts, prevalentWind, seatWind);
+      if(score) panel.appendChild(renderScoreSection(score));
     }
 
     if(total===14){
@@ -1032,40 +1654,121 @@
 
   /* ================= Glossary view ================= */
 
-  function renderPatternCard(key){
-    const info = PATTERN_INFO[key];
-    const card = document.createElement('div');
-    card.className='glossary-card';
-    const h = document.createElement('h4');
-    h.innerHTML = info.en + (info.cn ? ' <span class="cn cjk">'+info.cn+'</span>' : '');
-    card.appendChild(h);
-    const p = document.createElement('p');
-    p.textContent = info.desc;
-    card.appendChild(p);
-
-    if(key==='sevenPairs'){
-      card.appendChild(renderSevenPairsExampleBlock());
-    } else {
-      const ann = findExampleLeaf(key);
-      card.appendChild(renderGroupsBlock(ann));
-    }
-    return card;
+  function renderStaticHand(melds, head, extra){
+    const wrap = document.createElement('div');
+    melds.forEach(g=>wrap.appendChild(renderGroup(g,'meld')));
+    if(head) wrap.appendChild(renderGroup(head,'head'));
+    if(extra) wrap.appendChild(renderGroup(extra.tiles, extra.kind||'taatsu', extra.note||''));
+    return wrap;
   }
 
-  function renderSevenPairsExampleBlock(){
+  function renderPairsExampleBlock(tileList){
     const wrap = document.createElement('div');
-    const counts = countsFromList(SEVEN_PAIRS_EXAMPLE);
+    const counts = countsFromList(tileList);
     for(let i=0;i<34;i++){
       if(counts[i]>=2) wrap.appendChild(renderGroup([i,i],'head'));
     }
     return wrap;
   }
 
+  function renderThirteenOrphansExample(){
+    const wrap = document.createElement('div');
+    const counts = countsFromList(THIRTEEN_ORPHANS_EXAMPLE);
+    let pairTile = null;
+    const singles = [];
+    for(let i=0;i<34;i++){
+      if(counts[i]===2) pairTile = i;
+      else if(counts[i]===1) singles.push(i);
+    }
+    wrap.appendChild(renderGroup(singles, 'floating'));
+    if(pairTile!=null) wrap.appendChild(renderGroup([pairTile,pairTile], 'head'));
+    return wrap;
+  }
+
+  function renderKnittedHonorsExample(ex){
+    const wrap = document.createElement('div');
+    wrap.appendChild(renderGroup(ex.honors, 'meld', 'winds & dragons'));
+    wrap.appendChild(renderGroup(ex.knitted, 'taatsu', 'knitted tiles \u2014 no pair'));
+    return wrap;
+  }
+
+  function renderKnittedStraightExample(){
+    const ex = KNITTED_STRAIGHT_EXAMPLE;
+    const wrap = document.createElement('div');
+    wrap.appendChild(renderGroup(ex.knitted, 'meld', 'knitted 147 / 258 / 369'));
+    wrap.appendChild(renderGroup(ex.meld, 'meld'));
+    wrap.appendChild(renderGroup(ex.pair, 'head'));
+    return wrap;
+  }
+
+  function renderGenericWinExample(){
+    const ann = firstCompleteLeaf(GENERIC_WIN_EXAMPLE);
+    return ann ? renderGroupsBlock(ann) : document.createElement('div');
+  }
+
+  // Patterns that can't be verified by the DETECTORS engine (kongs, irregular
+  // knitted hands, waits, and win-circumstance fan) get a hand-built example.
+  const CUSTOM_RENDERERS = {
+    sevenPairs: ()=> renderPairsExampleBlock(SEVEN_PAIRS_EXAMPLE),
+    sevenShiftedPairs: ()=> renderPairsExampleBlock(SEVEN_SHIFTED_PAIRS_EXAMPLE),
+    thirteenOrphans: renderThirteenOrphansExample,
+    greaterHonorsAndKnittedTiles: ()=> renderKnittedHonorsExample(GREATER_KNITTED_EXAMPLE),
+    lesserHonorsAndKnittedTiles: ()=> renderKnittedHonorsExample(LESSER_KNITTED_EXAMPLE),
+    knittedStraight: renderKnittedStraightExample,
+    fourKongs: ()=> renderStaticHand([[m(5),m(5),m(5),m(5)],[s(7),s(7),s(7),s(7)],[p(2),p(2),p(2),p(2)],[EAST,EAST,EAST,EAST]], [p(9),p(9)]),
+    threeKongs: ()=> renderStaticHand([[m(5),m(5),m(5),m(5)],[s(7),s(7),s(7),s(7)],[p(2),p(2),p(2),p(2)],[p(6),p(7),p(8)]], [p(9),p(9)]),
+    twoConcealedKongs: ()=> renderStaticHand([[m(5),m(5),m(5),m(5)],[s(7),s(7),s(7),s(7)],[p(1),p(2),p(3)],[p(6),p(6),p(6)]], [p(9),p(9)]),
+    twoMeldedKongs: ()=> renderStaticHand([[m(5),m(5),m(5),m(5)],[s(7),s(7),s(7),s(7)],[p(1),p(2),p(3)],[p(6),p(6),p(6)]], [p(9),p(9)]),
+    concealedKong: ()=> renderStaticHand([[m(5),m(5),m(5),m(5)],[s(1),s(2),s(3)],[p(6),p(7),p(8)],[p(2),p(2),p(2)]], [s(9),s(9)]),
+    meldedKong: ()=> renderStaticHand([[m(5),m(5),m(5),m(5)],[s(1),s(2),s(3)],[p(6),p(7),p(8)],[p(2),p(2),p(2)]], [s(9),s(9)]),
+    edgeWait: ()=> renderStaticHand([[s(1),s(2),s(3)],[p(4),p(5),p(6)],[EAST,EAST,EAST]], [m(8),m(8)], {tiles:[m(1),m(2)], note:'waiting on 3\u4e07 only (edge wait)'}),
+    closedWait: ()=> renderStaticHand([[s(1),s(2),s(3)],[p(4),p(5),p(6)],[EAST,EAST,EAST]], [m(8),m(8)], {tiles:[m(3),m(5)], note:'waiting on 4\u4e07 only (closed wait)'}),
+    singleWait: ()=> renderStaticHand([[m(1),m(2),m(3)],[s(4),s(5),s(6)],[p(7),p(8),p(9)],[EAST,EAST,EAST]], null, {tiles:[m(9)], note:'waiting on 9\u4e07 to pair up'}),
+    chickenHand: renderGenericWinExample,
+    lastTileDraw: renderGenericWinExample,
+    lastTileClaim: renderGenericWinExample,
+    outWithReplacementTile: renderGenericWinExample,
+    robbingTheKong: renderGenericWinExample,
+    meldedHand: renderGenericWinExample,
+    fullyConcealedHand: renderGenericWinExample,
+    lastTile: renderGenericWinExample,
+    concealedHand: renderGenericWinExample,
+    selfDrawn: renderGenericWinExample
+  };
+  const SITUATIONAL_KEYS = new Set(['chickenHand','lastTileDraw','lastTileClaim','outWithReplacementTile',
+    'robbingTheKong','meldedHand','fullyConcealedHand','lastTile','concealedHand','selfDrawn']);
+
+  function renderFanCard(def){
+    const card = document.createElement('div');
+    card.className='glossary-card';
+    const h = document.createElement('h4');
+    h.innerHTML = def.en + ' <span class="cn cjk" style="color:var(--amber);font-weight:600;">'+def.points+' pt'+(def.points===1?'':'s')+'</span>';
+    card.appendChild(h);
+    const p = document.createElement('p');
+    p.textContent = def.desc + (def.notes ? ' '+def.notes : '');
+    if(SITUATIONAL_KEYS.has(def.key)){
+      p.textContent += ' This fan depends on how the hand was won, not its tile shape \u2014 the hand shown is just one example of a complete hand.';
+    } else if(def.key==='flowerTiles'){
+      p.textContent += ' This tool doesn\u2019t model flower/bonus tiles, so there\u2019s no example hand to show.';
+    }
+    card.appendChild(p);
+
+    let exampleEl = null;
+    if(CUSTOM_RENDERERS[def.key]){
+      exampleEl = CUSTOM_RENDERERS[def.key]();
+    } else if(PATTERN_EXAMPLES[def.key]){
+      const ann = findExampleLeaf(def.key);
+      if(ann) exampleEl = renderGroupsBlock(ann);
+    }
+    if(exampleEl) card.appendChild(exampleEl);
+    return card;
+  }
+
   function renderGlossary(){
     const grid = document.getElementById('glossaryGrid');
     grid.innerHTML='';
-    PATTERN_ORDER.forEach(key=>{
-      grid.appendChild(renderPatternCard(key));
+    FAN_DEFS.forEach(def=>{
+      grid.appendChild(renderFanCard(def));
     });
   }
 
@@ -1080,6 +1783,15 @@
   document.getElementById('clearBtn').addEventListener('click', ()=>{
     handCounts = new Array(34).fill(0);
     renderAll();
+  });
+
+  document.getElementById('prevalentWindSelect').addEventListener('change', e=>{
+    prevalentWind = WIND_TILE_BY_LETTER[e.target.value];
+    renderResults();
+  });
+  document.getElementById('seatWindSelect').addEventListener('change', e=>{
+    seatWind = WIND_TILE_BY_LETTER[e.target.value];
+    renderResults();
   });
 
   const builderView = document.getElementById('builderView');

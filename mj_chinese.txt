@@ -1,0 +1,82 @@
+Fan | Description | Notes | Points
+Big Four Winds | Four pungs of winds. | Does not combine with Big Three Winds, All Pungs, Prevalent Wind, Seat Wind or Pung of Terminals or Honors. | 88
+Big Three Dragons | Three pungs of dragons. | Does not combine with other dragon-based fan. | 88
+All Green | A hand, of which all sets and the pair have only tiles painted in green. | Does not combine with Seven Pairs, Half Flush, One Voided Suit. | 88
+Nine Gates | 1112345678999 in one suit concealed, waiting on any tile of the same suit. | Does not combine with Full Flush, Half Flush, Concealed Hand, One Voided Suit or No Honors. | 88
+Four Kongs |  | Does not combine with concealed pung-, kong- or melded kong-based fan, All Pungs or Single Wait. | 88
+Seven Shifted Pairs | An irregular hand with seven pairs in one suit, of which the numbers are off by one. | Does not combine with Seven Pairs, Full Flush, Half Flush, Concealed Hand, One Voided Suit or No Honors. | 88
+Thirteen Orphans | Three sets 1s and 9s in three suit and one of each winds or dragon, one of any paired. | Does not combine with All Terminals and Honors, Outside Hand, Concealed Hand or Single Wait. | 88
+All Terminals | Four pungs or kongs and one pair of 1s and 9s. | Does not combine with All Terminals and Honors, Seven Pairs, Triple Pung, All Pungs, Outside Hand, Double Pung, Pung of Terminals or Honors, or No Honors. | 64
+Little Four Winds | Three pungs or kongs and one pair of winds. | Does not combine with Big Three Winds. | 64
+Little Three Dragons | Two pungs or kongs and one pair of dragons. | Does not combine with other dragon-based fan. | 64
+All Honors | Four pungs or kongs and one pair of winds and dragons. | Does not combine with All Terminals and Honors, Seven Pairs, All Pungs, Half Flush, Outside Hand or One Voided Suit. | 64
+Four Concealed Pungs | Four concealed pungs or kongs. | Does not combine with concealed pung-, kong- or melded kong-based fan, All Pungs and Concealed Hand. | 64
+Pure Terminal Chows | 123 123 55 789 789 in one suit. | Does not combine with Full Flush, Half Flush, All Chows, Pure Double Chow, Two Terminal Chows, One Voided Suit or No Honors. | 64
+Quadruple Chow | Four identical chows. | Does not combine with Pure Triple Chow, Tile Hog or Pure Double Chow. | 48
+Four Pure Shifted Pungs | Four pungs in one suit, of which the numbers are off by one. | Does not combine with Pure Shifted Pungs or All Pungs. | 48
+Four Shifted Chows | Four chows in one suit, of which the numbers are off by one or two. | Does not combine with Pure Shifted Chows. | 32
+Three Kongs |  | Does not combine with concealed pung-, kong- or melded kong-based fan, except with unrelated pungs or kongs. | 32
+All Terminals and Honors | Four pungs or kongs and one pair of 1s, 9s, winds and dragons. | Does not combine with Seven Pairs, All Pungs or Outside Hand. | 32
+Seven Pairs | An irregular hand with seven pairs. | Does not combine with All Green, All Terminals, All Honors, All Terminals and Honors, All Even, Upper Tiles, Middle Tiles, Lower Tiles, Upper Four, Lower Four, Outside Hand, Concealed Hand or Single Wait. | 24
+Greater Honors and Knitted Tiles | An irregular hand with 1, 4 and/or 7 in one suit, 2, 5 and/or 8 in a second suit, 3, 6 and/or 9 in the third suit, and one of each wind and dragon with no pair. | Does not combine with Lesser Honors and Knitted Tiles, All Types or Concealed Hand. | 24
+All Even | Four pungs or kongs and one pair of even-numbered tiles. | Does not combine with Seven Pairs, All Pungs, All Simples or No Honors. | 24
+Full Flush | A hand with only one suit. | Does not combine with Half Flush, One Voided Suit or No Honors. | 24
+Pure Triple Chow | Three identical chows. | Does not combine with Pure Double Chow. | 24
+Pure Shifted Pungs | Three pungs in one suit, of which the numbers are off by one. |  | 24
+Upper Tiles | A hand, of which all sets and the pair have only tiles numbered from 7 to 9. | Does not combine with Seven Pairs, Upper Four or No Honors. | 24
+Middle Tiles | A hand, of which all sets and the pair have only tiles numbered from 4 to 6. | Does not combine with Seven Pairs, All Simples or No Honors. | 24
+Lower Tiles | A hand, of which all sets and the pair have only tiles numbered from 1 to 3. | Does not combine with Seven Pairs, Lower Four or No Honors. | 24
+Pure Straight | 123, 456 and 789 chows in one suit. |  | 16
+Three-suited Terminal Chows | Two sets of 123 and 789 chows in two suits and a pair of 5s in the third suit. | Does not combine with All Chows, Mixed Double Chow, Two Terminal Chows or No Honors. | 16
+Pure Shifted Chows | Three chows in one suit of which the numbers are off by one or two. |  | 16
+All Fives | A hand, of which all sets and the pair have a 5. | Does not combine with All Simples or No Honors. | 16
+Triple Pung | Three same-numbered pungs or kongs in three suits. | Does not combine with All Terminals or Double Pung. | 16
+Three Concealed Pungs | Three concealed pungs or kongs. | Does not combine with concealed pung-, kong- or melded kong-based fan, except with unrelated pungs or kongs. | 16
+Lesser Honors and Knitted Tiles | An irregular hand with 1, 4 and/or 7 in one suit, 2, 5 and/or 8 in a second suit, 3, 6 and/or 9 in the third suit, and winds and dragons with no pair. | Does not combine with All Types or Concealed Hand. | 12
+Upper Four | A hand, of which all sets and the pair have only tiles numbered from 6 to 9. | Does not combine with Seven Pairs or No Honors. | 12
+Knitted Straight | Irregular 147, 258 and 369 chows in three suits. |  | 12
+Lower Four | A hand, of which all sets and the pair have only tiles numbered from 1 to 4. | Does not combine with Seven Pairs or No Honors. | 12
+Big Three Winds | Three pungs or kongs of winds. |  | 12
+Mixed Straight | 123, 456 and 789 chows in three suits. |  | 8
+Reversible Tiles | A hand with only tiles that are 180° rotationally symmetrical. | Does not combine with One Voided Suit. | 8
+Mixed Triple Chow | Three same-numbered chows in three suits. |  | 8
+Mixed Shifted Pungs | Three pungs or kongs in three suits, of which the numbers are off by one. |  | 8
+Chicken Hand | A hand, which scores no fan other than Flower Tiles. |  | 8
+Last Tile Draw | Winning with the last draw. | Does not combine with Self-drawn. | 8
+Last Tile Claim | Winning with the last discard. |  | 8
+Out with Replacement Tile | Winning from the replacement tile of a kong. | Does not combine with Self-drawn. Reduce 1 point for kong. | 8
+Robbing The Kong | Winning with the tile an added kong is called with. | Does not combine with Last Tile. | 8
+All Pungs | A hand with four pungs or kongs. |  | 6
+Half Flush | A hand with only one suit, winds and dragons. | Does not combine with All Green or One Voided Suit | 6
+Mixed Shifted Chows | Three chows in three suits, of which the numbers are off by one. |  | 6
+All Types | A hand with circles, bamboo, characters, winds and dragons. |  | 6
+Melded Hand | A hand, of which all sets are called and which wins with a discarded tile. |  | 6
+Two Concealed Kongs |  | Does not combine with concealed pung-, kong- or melded kong-based fan. | 6
+Two Dragons | Two pungs or kongs of dragons. | Does not combine with Dragon Pung. | 6
+Outside Hand | A hand, of which all sets and the pair have a 1, 9, wind or dragon. | Does not combine with Seven Pairs. | 4
+Fully Concealed Hand | A self-drawn concealed hand. | Does not combine with Concealed Hand or Self-drawn. | 4
+Two Melded Kongs |  | Does not combine with concealed pung-, kong- or melded kong-based fan, except with unrelated pungs or kongs. | 4
+Last Tile | Winning with a tile, of which the three other copies are visible to all players. |  | 4
+Dragon Pung | A pung or kong of dragons. |  | 2
+Prevalent Wind | A pung or kong of the round wind. |  | 2
+Seat Wind | A pung or kong of the player's own wind. |  | 2
+Concealed Hand | A hand with called chows, pungs or kongs. | Does not combine with Nine Gates, Seven Shifted Pairs, Thirteen Orphans, Four Concealed Pungs, Seven Pairs, Greater Honors and Knitted Tiles or Lesser Honors and Knitted Tiles. | 2
+All Chows | Four chows and a non-honor pair. | Does not combine with No Honors. | 2
+Tile Hog | Hand contains four copies of a single type of tile in two or more sets or pairs. |  | 2
+Double Pung | Two same-numbered pungs or kongs in two suits. |  | 2
+Two Concealed Pungs | Two concealed pungs or kongs. | Does not combine with concealed pung-, kong- or melded kong-based fan, except with unrelated pungs or kongs. | 2
+Concealed Kong |  | Does not combine with concealed pung-, kong- or melded kong-based fan, except with unrelated pungs or kongs. | 2
+All Simples | A hand with only numbered tiles from 2 to 8. | Does not combine with No Honors. | 2
+Pure Double Chow | Two identical chows. |  | 1
+Mixed Double Chow | Two same-numbered chows in two suits. |  | 1
+Short Straight | Two chows, which together have six consecutive numbers. |  | 1
+Two Terminal Chows | 123 and 789 chows in one suit. |  | 1
+Pung of Terminals or Honors | A pung or kong of 1s, 9s or winds |  | 1
+Melded Kong |  | Does not combine with concealed pung-, kong- or melded kong-based fan, except with unrelated pungs or kongs. | 1
+One Voided Suit |  | Does not combine with All Green or Reversible Tiles. | 1
+No Honors |  | Does not combine with Upper Tiles, Middle Tiles, Lower Tiles, Upper Four or Lower Four. | 1
+Edge Wait | Waiting for only one type of tile, which completes a 123 or 789 chow with a 3 or 7. |  | 1
+Closed Wait | Waiting for only one type of tile, which completes a chow in the middle. |  | 1
+Single Wait | Waiting for only one type of tile, which completes a pair. | Does not combine with Thirteen Orphans. | 1
+Self-drawn | Winning with a drawn tile. | Does not combine with Last Tile Draw or Out with Replacement Tile. | 1
+Flower Tiles |  |  | 1
