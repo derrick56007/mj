@@ -244,6 +244,12 @@
     cursor:pointer;
   }
   .wind-settings select:focus-visible{outline:2px solid var(--gold); outline-offset:2px;}
+  .win-settings-hint{
+    margin:8px 2px 0;
+    font-size:11.5px;
+    line-height:1.5;
+    color:#a9c4b8;
+  }
 
   /* ---------- Scoring section ---------- */
   .fan-total{
@@ -401,6 +407,23 @@
         </label>
       </div>
 
+      <div class="wind-settings">
+        <label>Won by
+          <select id="winMethodSelect">
+            <option value="discard">Claiming a discard</option>
+            <option value="selfdraw">Self-draw</option>
+          </select>
+        </label>
+        <label>Meld status
+          <select id="concealmentSelect">
+            <option value="concealed">Fully concealed (no calls)</option>
+            <option value="mixed">Some sets called</option>
+            <option value="melded">All sets called</option>
+          </select>
+        </label>
+      </div>
+      <p class="win-settings-hint">These affect fan such as Self-drawn, Fully Concealed Hand, Concealed Hand and Melded Hand, and the payout once the hand is complete. Set them to match how the tiles were actually obtained.</p>
+
       <div class="rack">
         <div class="rack-head">
           <h2 class="cjk">你的手牌 &nbsp;Your hand</h2>
@@ -483,6 +506,8 @@
   let handCounts = new Array(34).fill(0);
   let prevalentWind = EAST;
   let seatWind = EAST;
+  let winMethod = 'discard';   // 'discard' | 'selfdraw'
+  let concealment = 'concealed'; // 'concealed' | 'mixed' | 'melded'
   const WIND_TILE_BY_LETTER = {E:EAST, S:SOUTH, W:WEST, N:NORTH};
   function totalTiles(){ return handCounts.reduce((a,b)=>a+b,0); }
   function countsFromList(list){
@@ -720,7 +745,7 @@ Last Tile | Winning with a tile, of which the three other copies are visible to 
 Dragon Pung | A pung or kong of dragons. |  | 2
 Prevalent Wind | A pung or kong of the round wind. |  | 2
 Seat Wind | A pung or kong of the player's own wind. |  | 2
-Concealed Hand | A hand with called chows, pungs or kongs. | Does not combine with Nine Gates, Seven Shifted Pairs, Thirteen Orphans, Four Concealed Pungs, Seven Pairs, Greater Honors and Knitted Tiles or Lesser Honors and Knitted Tiles. | 2
+Concealed Hand | A hand with no chows, pungs or kongs called from another player's discard, winning by claiming a discard. | Does not combine with Nine Gates, Seven Shifted Pairs, Thirteen Orphans, Four Concealed Pungs, Seven Pairs, Greater Honors and Knitted Tiles or Lesser Honors and Knitted Tiles. | 2
 All Chows | Four chows and a non-honor pair. | Does not combine with No Honors. | 2
 Tile Hog | Hand contains four copies of a single type of tile in two or more sets or pairs. |  | 2
 Double Pung | Two same-numbered pungs or kongs in two suits. |  | 2
@@ -1200,7 +1225,14 @@ Flower Tiles |  |  | 1`;
     ['fourShiftedChows','pureShiftedChows'],
     ['fourConcealedPungs','allPungs'], ['fourConcealedPungs','threeConcealedPungs'], ['fourConcealedPungs','twoConcealedPungs'],
     ['threeConcealedPungs','twoConcealedPungs'],
-    ['triplePung','doublePung']
+    ['triplePung','doublePung'],
+    // Win-method-dependent fan (added once the hand builder tracks how a
+    // hand was won) combine per the same Notes column as everything above.
+    ['nineGates','concealedHand'], ['sevenShiftedPairs','concealedHand'], ['thirteenOrphans','concealedHand'],
+    ['fourConcealedPungs','concealedHand'], ['sevenPairs','concealedHand'],
+    ['greaterHonorsAndKnittedTiles','concealedHand'], ['lesserHonorsAndKnittedTiles','concealedHand'],
+    ['fullyConcealedHand','concealedHand'], ['fullyConcealedHand','selfDrawn'],
+    ['greaterHonorsAndKnittedTiles','lesserHonorsAndKnittedTiles']
   ];
   const EXCLUDE_MAP = {};
   EXCLUDE_PAIRS.forEach(([a,b])=>{
@@ -1208,15 +1240,40 @@ Flower Tiles |  |  | 1`;
     (EXCLUDE_MAP[b] ||= new Set()).add(a);
   });
 
-  function computeStandardHits(std){
+  // Fan whose detector can't actually tell a concealed set from a called
+  // one (the hand builder has no notion of "called" tiles at all) — these
+  // are only awarded once the player confirms the hand really was fully
+  // concealed, via the Meld status control.
+  const CONCEALMENT_GATED = new Set(['fourConcealedPungs','threeConcealedPungs','twoConcealedPungs','nineGates']);
+
+  function computeStandardHits(std, concealment){
     const hits = [];
     Object.keys(DETECTORS).forEach(key=>{
-      const count = DETECTORS[key](std);
+      let count = DETECTORS[key](std);
+      if(count>0 && CONCEALMENT_GATED.has(key) && concealment!=='concealed') count = 0;
       if(count>0) hits.push({key, points:FAN_MAP[key].points, count});
     });
     return hits;
   }
 
+  // Fan that depend on how the hand was won rather than its tile shape.
+  // The hand builder can't see calls or draws, so these only appear once
+  // the player states the win method and meld status explicitly.
+  function computeSituationalHits(winMethod, concealment){
+    if(winMethod==='selfdraw'){
+      return concealment==='concealed'
+        ? [{key:'fullyConcealedHand', points:FAN_MAP.fullyConcealedHand.points, count:1}]
+        : [{key:'selfDrawn', points:FAN_MAP.selfDrawn.points, count:1}];
+    }
+    if(concealment==='concealed') return [{key:'concealedHand', points:FAN_MAP.concealedHand.points, count:1}];
+    if(concealment==='melded') return [{key:'meldedHand', points:FAN_MAP.meldedHand.points, count:1}];
+    return [];
+  }
+
+  // Applies the Non-Repeat / Non-Identical / Count-Once combination rules
+  // (via EXCLUDE_MAP, built from each fan's Notes column) and the Freedom
+  // to Choose principle (always keep the higher-scoring fan on conflict,
+  // since hits are processed highest-value first).
   function resolveFans(hits){
     const sorted = hits.slice().sort((a,b)=> (b.points*b.count)-(a.points*a.count));
     const selected = [];
@@ -1226,11 +1283,14 @@ Flower Tiles |  |  | 1`;
       if(!conflict){ selected.push(h); chosen.add(h.key); }
     });
     let total = selected.reduce((a,h)=>a+h.points*h.count, 0);
+    // Chicken Hand is only awarded when the hand scores literally no other
+    // fan (not even Self-drawn) — a hand with some fan below the 8-point
+    // minimum does NOT get bumped up to Chicken Hand; it simply can't win.
     if(selected.length===0){
       selected.push({key:'chickenHand', points:FAN_MAP.chickenHand.points, count:1});
       total = FAN_MAP.chickenHand.points;
     }
-    return { selected, total };
+    return { selected, total, valid: total>=8 };
   }
 
   const THIRTEEN_ORPHAN_TILES = [m(1),m(9),s(1),s(9),p(1),p(9),EAST,SOUTH,WEST,NORTH,RED,GREEN,WHITE];
@@ -1258,16 +1318,99 @@ Flower Tiles |  |  | 1`;
     return true;
   }
 
-  function scoreHand(counts, pWind, sWind){
+  // ---- Greater/Lesser Honors and Knitted Tiles, and Knitted Straight ----
+  // These three "irregular" hands aren't 4-sets-plus-a-pair, so they need
+  // their own detectors rather than going through decompose().
+  const KNIT_COLUMNS = [[0,3,6],[1,4,7],[2,5,8]]; // 0-indexed ranks for 1/4/7, 2/5/8, 3/6/9
+  const KNIT_PERMS = [[0,1,2],[0,2,1],[1,0,2],[1,2,0],[2,0,1],[2,1,0]];
+  function suitedIdx(suitNum, rank0){ return suitNum===SUIT_M ? m(rank0+1) : suitNum===SUIT_S ? s(rank0+1) : p(rank0+1); }
+
+  // If every present suited tile is a single copy and fits into one of the
+  // three knitted columns (a distinct column per suit), returns how many
+  // suited tiles were used; otherwise null.
+  function knittedSuitedFit(counts){
+    for(let i=0;i<27;i++) if(counts[i]>1) return null;
+    const suits=[SUIT_M,SUIT_S,SUIT_P];
+    const presentBySuit = suits.map(su=>{
+      const ranks=[];
+      for(let r=0;r<9;r++) if(counts[suitedIdx(su,r)]>0) ranks.push(r);
+      return ranks;
+    });
+    for(const perm of KNIT_PERMS){
+      if(suits.every((su,i)=> presentBySuit[i].every(r=>KNIT_COLUMNS[perm[i]].includes(r)))){
+        return presentBySuit.reduce((a,arr)=>a+arr.length,0);
+      }
+    }
+    return null;
+  }
+
+  // Returns 'greater', 'lesser', or null.
+  function detectHonorsKnitted(counts){
+    if(counts.reduce((a,b)=>a+b,0)!==14) return null;
+    for(let i=27;i<34;i++) if(counts[i]>1) return null;
+    const suitedTotal = knittedSuitedFit(counts);
+    if(suitedTotal===null) return null;
+    let honorsCount=0;
+    for(let i=27;i<34;i++) if(counts[i]===1) honorsCount++;
+    if(suitedTotal+honorsCount!==14) return null;
+    if(honorsCount===7) return 'greater';
+    if(honorsCount>=1 && honorsCount<=6) return 'lesser';
+    return null;
+  }
+
+  // Three complete knitted columns (9 tiles, one full column per suit) plus
+  // one ordinary meld and pair (5 tiles) from what's left.
+  function detectKnittedStraight(counts){
+    if(counts.reduce((a,b)=>a+b,0)!==14) return false;
+    const suits=[SUIT_M,SUIT_S,SUIT_P];
+    for(const perm of KNIT_PERMS){
+      let ok = true;
+      for(let i=0;i<3 && ok;i++){
+        for(const r of KNIT_COLUMNS[perm[i]]) if(counts[suitedIdx(suits[i],r)]<1){ ok=false; break; }
+      }
+      if(!ok) continue;
+      const rest = counts.slice();
+      for(let i=0;i<3;i++) for(const r of KNIT_COLUMNS[perm[i]]) rest[suitedIdx(suits[i],r)]--;
+      if(rest.reduce((a,b)=>a+b,0)!==5) continue;
+      const leaves = decompose(rest).filter(l=>l.melds.length===1 && l.pairs.length===1 && l.taatsu.length===0 && l.singles.length===0);
+      if(leaves.length>0) return true;
+    }
+    return false;
+  }
+
+  function scoreHand(counts, pWind, sWind, winMethod, concealment){
+    winMethod = winMethod || 'discard';
+    concealment = concealment || 'concealed';
+    const situational = computeSituationalHits(winMethod, concealment);
+    // Thirteen Orphans, Seven (Shifted) Pairs and the knitted hands can
+    // only ever be assembled fully concealed (there's no meld to call for
+    // a lone tile or a pair) — a claimed discard just completes the wait,
+    // it never creates a "called" set — so their situational fan is
+    // always figured as if concealment were "concealed", regardless of
+    // what the Meld status control says.
+    const situationalConcealed = computeSituationalHits(winMethod, 'concealed');
     const candidates = [];
     if(isThirteenOrphans(counts)){
-      candidates.push({ kind:'thirteenOrphans', selected:[{key:'thirteenOrphans',points:FAN_MAP.thirteenOrphans.points,count:1}], total:FAN_MAP.thirteenOrphans.points });
+      const {selected,total,valid} = resolveFans([{key:'thirteenOrphans',points:FAN_MAP.thirteenOrphans.points,count:1}].concat(situationalConcealed));
+      candidates.push({ kind:'thirteenOrphans', selected, total, valid });
     }
     if(isSevenShiftedPairs(counts)){
-      candidates.push({ kind:'sevenShiftedPairs', selected:[{key:'sevenShiftedPairs',points:FAN_MAP.sevenShiftedPairs.points,count:1}], total:FAN_MAP.sevenShiftedPairs.points });
+      const {selected,total,valid} = resolveFans([{key:'sevenShiftedPairs',points:FAN_MAP.sevenShiftedPairs.points,count:1}].concat(situationalConcealed));
+      candidates.push({ kind:'sevenShiftedPairs', selected, total, valid });
     }
     if(sevenPairsShanten(counts)<=-1){
-      candidates.push({ kind:'sevenPairs', selected:[{key:'sevenPairs',points:FAN_MAP.sevenPairs.points,count:1}], total:FAN_MAP.sevenPairs.points });
+      const {selected,total,valid} = resolveFans([{key:'sevenPairs',points:FAN_MAP.sevenPairs.points,count:1}].concat(situationalConcealed));
+      candidates.push({ kind:'sevenPairs', selected, total, valid });
+    }
+    const knitHonors = detectHonorsKnitted(counts);
+    if(knitHonors){
+      const key = knitHonors==='greater' ? 'greaterHonorsAndKnittedTiles' : 'lesserHonorsAndKnittedTiles';
+      const {selected,total,valid} = resolveFans([{key, points:FAN_MAP[key].points, count:1}].concat(situationalConcealed));
+      candidates.push({ kind:key, selected, total, valid });
+    }
+    if(detectKnittedStraight(counts)){
+      const {selected,total,valid} = resolveFans([{key:'knittedStraight',points:FAN_MAP.knittedStraight.points,count:1}].concat(situationalConcealed));
+      candidates.push({ kind:'knittedStraight', selected, total, valid });
     }
     const seen = new Set();
     decompose(counts).forEach(leaf=>{
@@ -1276,11 +1419,21 @@ Flower Tiles |  |  | 1`;
       if(seen.has(sig)) return;
       seen.add(sig);
       const std = buildStdCtx(leaf.melds, leaf.pairs[0], pWind, sWind);
-      const { selected, total } = resolveFans(computeStandardHits(std));
-      candidates.push({ kind:'standard', selected, total });
+      const { selected, total, valid } = resolveFans(computeStandardHits(std, concealment).concat(situational));
+      candidates.push({ kind:'standard', selected, total, valid });
     });
     if(candidates.length===0) return null;
-    return candidates.reduce((best,c)=> c.total>best.total ? c : best);
+    const validCandidates = candidates.filter(c=>c.valid);
+    // Freedom to Choose: among every legal (>=8 point) interpretation of
+    // the tiles, the player picks whichever scores highest.
+    if(validCandidates.length){
+      return Object.assign({}, validCandidates.reduce((best,c)=> c.total>best.total ? c : best), {valid:true});
+    }
+    // No interpretation of this hand reaches the 8-point minimum, so it
+    // cannot legally be declared a win. Still surface the best (invalid)
+    // attempt so the player can see how short it falls and why.
+    const best = candidates.reduce((best,c)=> c.total>best.total ? c : best);
+    return Object.assign({}, best, {valid:false});
   }
 
   /* ================= Rendering: shared tile component ================= */
@@ -1518,6 +1671,18 @@ Flower Tiles |  |  | 1`;
     return sec;
   }
 
+  // Thirteen Orphans, the two Knitted Honors hands, and Knitted Straight
+  // aren't 4-sets-plus-a-pair or seven pairs, so the shanten engine above
+  // never marks them "complete" on its own — check for them directly so a
+  // finished hand of this shape is still recognized as a win.
+  function specialHandKey(counts){
+    if(isThirteenOrphans(counts)) return 'thirteenOrphans';
+    const knit = detectHonorsKnitted(counts);
+    if(knit) return knit==='greater' ? 'greaterHonorsAndKnittedTiles' : 'lesserHonorsAndKnittedTiles';
+    if(detectKnittedStraight(counts)) return 'knittedStraight';
+    return null;
+  }
+
   function renderResults(){
     const panel = document.getElementById('resultsPanel');
     panel.innerHTML='';
@@ -1532,10 +1697,12 @@ Flower Tiles |  |  | 1`;
     }
 
     const res = analyze(handCounts);
-    const type = res.standard<=res.sevenPairs ? 'standard' : 'sevenPairs';
-    const overall = res.overall;
+    const specialKey = total===14 ? specialHandKey(handCounts) : null;
+    const type = specialKey ? 'special' : (res.standard<=res.sevenPairs ? 'standard' : 'sevenPairs');
+    const overall = specialKey ? -1 : res.overall;
 
-    const primaryNames = type==='standard' && res.standardLeaves.length
+    const primaryNames = specialKey ? [specialKey]
+      : type==='standard' && res.standardLeaves.length
       ? classifyPatterns(annotateLeaf(res.standardLeaves[0]))
       : ['sevenPairs'];
 
@@ -1791,6 +1958,14 @@ Flower Tiles |  |  | 1`;
   });
   document.getElementById('seatWindSelect').addEventListener('change', e=>{
     seatWind = WIND_TILE_BY_LETTER[e.target.value];
+    renderResults();
+  });
+  document.getElementById('winMethodSelect').addEventListener('change', e=>{
+    winMethod = e.target.value;
+    renderResults();
+  });
+  document.getElementById('concealmentSelect').addEventListener('change', e=>{
+    concealment = e.target.value;
     renderResults();
   });
 
